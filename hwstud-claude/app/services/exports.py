@@ -95,7 +95,7 @@ def _docx(settings: Settings, title: str, lines: list[str]) -> bytes:
     footer.add_run("AI&HI · hwstud.ru\n")
     footer.add_run().add_picture(
         io.BytesIO(_logo_png(settings)),
-        height=Mm(10),
+        height=Mm(12),
     )
     buffer = io.BytesIO()
     document.save(buffer)
@@ -137,7 +137,7 @@ def _pdf(settings: Settings, title: str, lines: list[str]) -> bytes:
     logo = _logo_png(settings)
     for page in document:
         page.insert_image(
-            fitz.Rect(50, 807, 150, 835),
+            fitz.Rect(50, 800, 152, 834),
             stream=logo,
         )
     return document.tobytes(deflate=True)

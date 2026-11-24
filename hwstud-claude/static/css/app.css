@@ -163,7 +163,8 @@ th{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--muted)}
 .author-card{border-top:3px solid var(--notice)}
 .site-footer{display:flex;align-items:center;justify-content:space-between;gap:24px;width:min(1380px,calc(100% - 64px));margin:0 auto;padding:20px 0 28px;border-top:1px solid var(--line);font-size:14px}
 .author-brand{display:flex;align-items:center;gap:16px;color:var(--muted);text-decoration:none}
-.author-brand img{width:auto;height:32px;object-fit:contain}
+.author-brand img{display:block;width:192px;height:64px;max-width:100%;object-fit:contain;flex-shrink:0}
+.about-author-logo{display:block;width:240px;height:80px;max-width:100%;object-fit:contain;margin:18px 0}
 .logo-dark{display:none}
 :root[data-theme="dark"] .logo-light{display:none}
 :root[data-theme="dark"] .logo-dark{display:block}

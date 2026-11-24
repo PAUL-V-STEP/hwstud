@@ -306,11 +306,33 @@ def test_export_formats_return_real_files(client, settings):
         assert len(response.content) > 100, fmt
         if fmt in {"xlsx", "docx"}:
             assert response.content[:2] == b"PK"
+        if fmt == "docx":
+            import io
+            from docx import Document
+            from docx.shared import Mm
+            document = Document(io.BytesIO(response.content))
+            footer_images = document.sections[0].footer._element.xpath(".//wp:inline")
+            assert len(footer_images) == 1
+            extent = footer_images[0].xpath("./wp:extent")[0]
+            width = int(extent.get("cx"))
+            height = int(extent.get("cy"))
+            assert abs(height - int(Mm(12))) <= 1
+            assert abs(width / height - 3) < 0.01
         if fmt == "pdf":
             assert response.content.startswith(b"%PDF")
             import fitz
             with fitz.open(stream=response.content, filetype="pdf") as document:
                 assert "BPMN" in "".join(page.get_text() for page in document)
+                rectangles = [
+                    rect
+                    for page in document
+                    for image in page.get_images(full=True)
+                    for rect in page.get_image_rects(image[0])
+                ]
+                assert any(
+                    abs(rect.width / rect.height - 3) < 0.01 and abs(rect.height - 34) < 0.1
+                    for rect in rectangles
+                )
         if fmt == "md":
             assert "BPMN" in response.text
     for fmt in ("md", "docx", "pdf"):

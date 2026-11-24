@@ -182,7 +182,13 @@ def test_static_theme_and_public_about(client):
     assert response.status_code == 200
     assert "ИИ предлагает" in response.text
     assert 'src="http' not in response.text
-    assert client.get("/static/css/app.css").status_code == 200
+    assert 'class="about-author-logo logo-light"' in response.text
+    assert 'class="about-author-logo logo-dark"' in response.text
+    assert 'app.css?v=20261124-4' in response.text
+    css_response = client.get("/static/css/app.css")
+    assert css_response.status_code == 200
+    assert ".author-brand img{display:block;width:192px;height:64px" in css_response.text
+    assert ".about-author-logo{display:block;width:240px;height:80px" in css_response.text
     assert client.get("/static/js/app.js").status_code == 200
     response = client.get("/health")
     assert response.json()["status"] == "ok"

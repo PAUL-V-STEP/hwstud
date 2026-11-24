@@ -166,6 +166,17 @@ def test_student_navigation_has_responsive_menu(client):
     assert "flex-wrap:wrap" in css
 
 
+def test_form_scroll_preservation_script_is_versioned_and_scoped(client):
+    page = client.get("/about")
+    assert 'src="/static/js/app.js?v=20261124-1"' in page.text
+    script = client.get("/static/js/app.js").text
+    assert "sessionStorage.setItem(formScrollKey" in script
+    assert "parsed.path === window.location.pathname" in script
+    assert "window.scrollTo(0, savedFormScroll)" in script
+    assert "root.style.scrollBehavior = 'auto'" in script
+    assert "form.matches('[data-upload-form]')" in script
+
+
 def test_static_theme_and_public_about(client):
     response = client.get("/about")
     assert response.status_code == 200

@@ -48,6 +48,48 @@
     });
   }
 
+  const formScrollKey = 'hwstud-form-scroll';
+  let savedFormScroll = null;
+  try {
+    const saved = sessionStorage.getItem(formScrollKey);
+    sessionStorage.removeItem(formScrollKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.path === window.location.pathname && Number.isFinite(parsed.y) && parsed.y >= 0) {
+        savedFormScroll = parsed.y;
+      }
+    }
+  } catch (_) {
+    // Форма отправляется и без доступа к sessionStorage.
+    savedFormScroll = null;
+  }
+
+  function restoreFormScroll() {
+    if (savedFormScroll === null) return;
+    const previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo(0, savedFormScroll);
+    window.requestAnimationFrame(() => {
+      window.scrollTo(0, savedFormScroll);
+      root.style.scrollBehavior = previousBehavior;
+    });
+  }
+
+  restoreFormScroll();
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (form.matches('[data-upload-form]') || form.dataset.preserveScroll === 'false') return;
+    try {
+      sessionStorage.setItem(formScrollKey, JSON.stringify({
+        path: window.location.pathname,
+        y: window.scrollY,
+      }));
+    } catch (_) {
+      // Отсутствие хранилища не мешает отправке формы.
+    }
+  });
+
   const processLinks = Array.from(document.querySelectorAll('.process-step'));
   processLinks.forEach((link, index) => {
     link.addEventListener('keydown', (event) => {

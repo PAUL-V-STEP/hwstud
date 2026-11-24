@@ -42,8 +42,20 @@ def create_templates(base_dir: Path) -> Jinja2Templates:
 
 def _back_navigation(request: Request, actor: Actor | None, values: dict[str, Any]):
     path = request.url.path
+    if (actor and path == "/") or (actor and actor.is_admin and path == "/admin"):
+        return None
+    if path == "/admin/settings/password" and request.session.get("must_change_password"):
+        return None
+    if path == "/admin/data/deletion":
+        state = values.get("state")
+        if state and state["started_at"]:
+            return None
     if path == "/about":
         return ("/" if actor else "/login", "Карта курса" if actor else "Ко входу")
+    if path == "/admin/login":
+        return "/login", "Ко входу студента"
+    if path == "/login":
+        return "/about", "О курсе"
     if path == "/glossary" or path == "/literature":
         slug = values.get("lecture")
         if slug:
@@ -53,19 +65,32 @@ def _back_navigation(request: Request, actor: Actor | None, values: dict[str, An
         return ("/announcements", "К объявлениям") if path != "/announcements" else ("/", "Карта курса")
     if path in {"/lectures", "/assignments", "/results", "/messages", "/cabinet", "/help", "/help/upload"}:
         return ("/admin", "Обзор") if actor and actor.is_admin else ("/", "Карта курса")
+    if path.startswith("/lectures/"):
+        slug = path.split("/")[2]
+        if path.endswith("/conspectus"):
+            return f"/lectures/{slug}", "К просмотру лекции"
+        return "/lectures", "К списку лекций"
     if path.startswith("/admin/messages/"):
         return "/admin/messages", "К списку веток"
-    if path in {"/admin/settings/password", "/admin/settings/proxyapi"}:
+    if path.startswith("/admin/settings/"):
         return "/admin/settings", "К настройкам"
-    if path == "/admin/data/deletion":
+    if path.startswith("/admin/submissions/"):
+        return "/admin/submissions", "К очереди проверки"
+    if path in {"/admin/data/delete", "/admin/data/deletion"}:
         return "/admin/data", "К данным курса"
+    if path.startswith("/admin/lectures/") or path.startswith("/admin/imports/"):
+        return "/admin/lectures", "К списку лекций"
+    if path.startswith("/admin/students/") or path.startswith("/admin/groups/"):
+        return "/admin/groups", "К группам и никам"
     if path in {
-        "/admin/lectures", "/admin/assignments", "/admin/submissions", "/admin/results",
-        "/admin/glossary", "/admin/literature", "/admin/settings", "/admin/exam",
-        "/admin/groups", "/admin/about", "/admin/data", "/admin/messages",
+        "/admin/lectures", "/admin/announcements", "/admin/assignments", "/admin/submissions",
+        "/admin/results", "/admin/glossary", "/admin/literature", "/admin/settings",
+        "/admin/exam", "/admin/groups", "/admin/about", "/admin/data", "/admin/messages",
     }:
         return "/admin", "Обзор"
-    return None
+    if actor:
+        return ("/admin", "Обзор") if actor.is_admin else ("/", "Карта курса")
+    return "/login", "Ко входу"
 
 
 def render(

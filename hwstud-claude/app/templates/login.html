@@ -20,7 +20,7 @@
         {% for group in groups %}<label class="group-option"><input type="radio" name="group_id" value="{{ group.id }}" required><span>{{ group.name }}</span></label>{% endfor %}
       </fieldset>
       {% endif %}
-      <button class="button primary" type="submit">{{ 'Войти и создать ник' if show_groups else 'Продолжить' }}</button>
+      <div class="button-row"><button class="button primary" type="submit">{{ 'Войти и создать ник' if show_groups else 'Продолжить' }}</button>{% if show_groups %}<a class="button secondary" href="/login">Изменить ник</a>{% endif %}</div>
     </form>
     <a class="admin-entry" href="/admin/login">Вход преподавателя</a>
   </div>

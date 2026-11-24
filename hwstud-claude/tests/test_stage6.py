@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from app.auth import create_student
+from types import SimpleNamespace
+
+from app.auth import Actor, create_student
 from app.db import connect, utc_now_iso
 from app.services import cabinet
+from app.web import _back_navigation
 
 from .conftest import csrf_from, login_admin, login_student
 
@@ -164,6 +167,33 @@ def test_contextual_back_links_and_back_to_top(client, settings):
     assert 'class="back-link" href="/admin/settings"' in response.text
     response = client.get("/help")
     assert 'class="back-link" href="/admin"' in response.text
+
+
+def test_back_navigation_covers_nested_forms_and_fallbacks():
+    admin = Actor(role="admin")
+    student = Actor(role="student", student_id=1)
+    cases = (
+        (admin, "/admin/announcements", ("/admin", "Обзор")),
+        (admin, "/admin/submissions/7", ("/admin/submissions", "К очереди проверки")),
+        (admin, "/admin/lectures/import", ("/admin/lectures", "К списку лекций")),
+        (admin, "/admin/imports/4", ("/admin/lectures", "К списку лекций")),
+        (admin, "/admin/data/delete", ("/admin/data", "К данным курса")),
+        (admin, "/admin/students/3/delete", ("/admin/groups", "К группам и никам")),
+        (admin, "/admin/settings/proxyapi", ("/admin/settings", "К настройкам")),
+        (admin, "/admin/new-form", ("/admin", "Обзор")),
+        (student, "/lectures/open-lecture", ("/lectures", "К списку лекций")),
+        (student, "/lectures/open-lecture/conspectus", ("/lectures/open-lecture", "К просмотру лекции")),
+        (student, "/new-form", ("/", "Карта курса")),
+        (None, "/login", ("/about", "О курсе")),
+        (None, "/admin/login", ("/login", "Ко входу студента")),
+        (None, "/unlisted", ("/login", "Ко входу")),
+    )
+    for actor, path, expected in cases:
+        request = SimpleNamespace(url=SimpleNamespace(path=path))
+        assert _back_navigation(request, actor, {}) == expected, path
+
+    assert _back_navigation(SimpleNamespace(url=SimpleNamespace(path="/admin")), admin, {}) is None
+    assert _back_navigation(SimpleNamespace(url=SimpleNamespace(path="/")), student, {}) is None
 
 
 def test_about_editor_groups_and_session_revocation(client, app, settings):

@@ -21,6 +21,8 @@ def test_default_admin_requires_change_and_new_password_works(settings):
         assert response.headers["location"] == "/admin/settings/password"
         response = client.get("/admin/settings/password")
         assert "первый вход" in response.text
+        assert 'class="back-link"' not in response.text
+        assert 'class="mobile-logout"' in response.text
         response = client.post(
             "/admin/settings/password",
             data={

@@ -17,6 +17,23 @@ from .student import require_user
 router = APIRouter()
 
 
+def _optional_positive_int(value: object, field_name: str) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"Некорректное значение: {field_name}")
+    normalized = value.strip()
+    if not normalized:
+        return None
+    try:
+        result = int(normalized)
+    except ValueError as exc:
+        raise ValueError(f"Некорректное значение: {field_name}") from exc
+    if result < 1:
+        raise ValueError(f"Некорректное значение: {field_name}")
+    return result
+
+
 def _with_links(conn, actor, rows):
     return [
         {
@@ -139,9 +156,6 @@ def messages_page(request: Request, actor: Actor = Depends(require_user)):
 async def send_message(
     request: Request,
     body: str = Form(""),
-    ref_lecture: int | None = Form(None),
-    ref_slide: int | None = Form(None),
-    ref_assignment: int | None = Form(None),
     csrf: str = Form(""),
     actor: Actor = Depends(require_user),
 ):
@@ -153,6 +167,9 @@ async def send_message(
     settings = request.app.state.settings
     conn = request.app.state.db_connect()
     try:
+        ref_lecture = _optional_positive_int(form.get("ref_lecture"), "лекция")
+        ref_slide = _optional_positive_int(form.get("ref_slide"), "слайд")
+        ref_assignment = _optional_positive_int(form.get("ref_assignment"), "задание")
         if not body or len(body) > 2000:
             raise ValueError("Сообщение должно содержать от 1 до 2000 знаков")
         if communication.student_messages_today(conn, actor.student_id, settings) >= 10:
@@ -209,8 +226,6 @@ def admin_announcements(request: Request, actor: Actor = Depends(require_admin))
             "SELECT * FROM announcements ORDER BY publish_at DESC, id DESC"
         ).fetchall()
         groups = conn.execute("SELECT * FROM groups ORDER BY id").fetchall()
-        lectures = conn.execute("SELECT id, title FROM lectures ORDER BY num, id").fetchall()
-        assignments = assignment_service.active_assignments(conn)
         reads = conn.execute(
             "SELECT ar.announcement_id, g.name AS group_name, COUNT(*) AS count "
             "FROM announcement_reads ar JOIN students s ON s.id = ar.student_id "
@@ -225,8 +240,6 @@ def admin_announcements(request: Request, actor: Actor = Depends(require_admin))
             "title": "Объявления",
             "announcements": announcements,
             "groups": groups,
-            "lectures": lectures,
-            "assignments": assignments,
             "reads": reads,
         },
         actor=actor,
@@ -244,9 +257,6 @@ def create_announcement(
     publish_at: str = Form(""),
     unpublish_at: str = Form(""),
     selected_groups: list[int] = Form([]),
-    link_type: str = Form("none"),
-    lecture_id: int | None = Form(None),
-    assignment_id: int | None = Form(None),
     csrf: str = Form(""),
     actor: Actor = Depends(require_admin),
 ):
@@ -261,23 +271,7 @@ def create_announcement(
         unpublished = _local_to_utc(unpublish_at, settings) if unpublish_at.strip() else None
         if unpublished and unpublished <= published:
             raise ValueError("Дата снятия должна быть позже публикации")
-        if link_type == "lecture":
-            if not lecture_id:
-                raise ValueError("Выберите лекцию")
-            conn = request.app.state.db_connect()
-            try:
-                lecture = conn.execute("SELECT slug FROM lectures WHERE id = ?", (lecture_id,)).fetchone()
-            finally:
-                conn.close()
-            if not lecture:
-                raise ValueError("Лекция не найдена")
-            link = f"/lectures/{lecture['slug']}"
-        elif link_type == "assignment":
-            if not assignment_id:
-                raise ValueError("Выберите задание")
-            link = "/assignments"
-        else:
-            link = None
+        link = None
         conn = request.app.state.db_connect()
         try:
             with transaction(conn, immediate=True):

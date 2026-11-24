@@ -155,6 +155,14 @@ def test_upload_attempt_owner_and_approval_flow(client, settings):
         file_id = submission["id"]
     finally:
         conn.close()
+    assignments_page = client.get("/assignments").text
+    results_page = client.get("/results").text
+    expected_file_link = f'href="/u/{file_id}" target="_blank" rel="noopener"'
+    assert expected_file_link in assignments_page
+    assert expected_file_link in results_page
+    login_admin(client)
+    admin_page = client.get(f"/admin/submissions/{file_id}").text
+    assert expected_file_link in admin_page
     assert client.get(f"/u/{file_id}").status_code == 200
     login_student(client, "other_student", 1)
     assert client.get(f"/u/{file_id}").status_code == 404

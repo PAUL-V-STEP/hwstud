@@ -122,7 +122,10 @@ def test_double_confirmation_and_complete_student_deletion(client, settings):
     assert response.status_code == 303
     assert backup.student_deletion_active(settings)
     assert client.get("/admin").status_code == 503
-    assert client.get("/admin/data/deletion").status_code == 200
+    response = client.get("/admin/data/deletion")
+    assert response.status_code == 200
+    assert 'class="back-link"' not in response.text
+    assert "Запущенное удаление нельзя отменить" in response.text
     job = claim_next_job(settings)
     assert job["kind"] == "delete_students"
     worker = Worker(settings)
@@ -149,6 +152,8 @@ def test_double_confirmation_and_complete_student_deletion(client, settings):
     finally:
         conn.close()
     assert not backup.student_deletion_active(settings)
+    response = client.get("/admin/data/deletion")
+    assert 'class="back-link" href="/admin/data"' in response.text
 
 
 def _token_from_session(client) -> str:

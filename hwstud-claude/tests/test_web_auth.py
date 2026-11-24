@@ -37,6 +37,17 @@ def test_invalid_nick_and_csrf(client):
     assert response.status_code == 403
 
 
+def test_group_selection_allows_returning_to_nick_edit(client):
+    response = client.get("/login")
+    response = client.post(
+        "/login",
+        data={"nick": "new_student", "csrf": csrf_from(response)},
+    )
+    assert response.status_code == 200
+    assert "Войти и создать ник" in response.text
+    assert '<a class="button secondary" href="/login">Изменить ник</a>' in response.text
+
+
 def test_blocked_student_session_is_rejected(client, settings):
     login_student(client)
     conn = connect(settings)
@@ -127,9 +138,32 @@ def test_admin_navigation_has_one_overview_and_clean_help_switch(client):
     navigation = re.search(r'<nav class="admin-nav".*?</nav>', response.text, re.S)
     assert navigation
     assert navigation.group(0).count(">Обзор<") == 1
+    assert navigation.group(0).count('href="/admin/announcements"') == 1
+    assert 'class="site-header teacher-header"' in response.text
+    mobile = re.search(r'<nav id="mobile-menu".*?</nav>', response.text, re.S)
+    assert mobile
+    assert mobile.group(0).count('href="/admin/announcements"') == 1
+    css = client.get("/static/css/app.css").text
+    assert "@media(max-width:1399px)" in css
+    assert ".teacher-header .admin-nav{display:none}" in css
     response = client.get("/help?view=student")
     assert "Вариант:" not in response.text
     assert 'href="?view=teacher"' in response.text
+
+
+def test_student_navigation_has_responsive_menu(client):
+    login_student(client, "responsive_student", 1)
+    response = client.get("/")
+    assert 'class="site-header student-header"' in response.text
+    assert re.search(r'<nav class="process-nav".*?</nav>', response.text, re.S)
+    mobile = re.search(r'<nav id="mobile-menu".*?</nav>', response.text, re.S)
+    assert mobile
+    assert 'href="/announcements"' in mobile.group(0)
+    assert response.text.count('action="/logout"') == 2
+    css = client.get("/static/css/app.css").text
+    assert "@media(max-width:991px)" in css
+    assert ".student-header .process-nav{display:none}" in css
+    assert "flex-wrap:wrap" in css
 
 
 def test_static_theme_and_public_about(client):

@@ -20,7 +20,6 @@ def create_announcement(client, **overrides):
         "body": "Текст объявления",
         "kind": "important",
         "publish_now": "1",
-        "link_type": "none",
     }
     data.update(overrides)
     response = client.post("/admin/announcements", data=data, follow_redirects=False)
@@ -76,28 +75,49 @@ def test_scheduled_publication_without_immediate_checkbox(client, settings):
     assert "Пока объявлений нет" in client.get("/announcements").text
 
 
-def test_hidden_lecture_link_and_schedule(client, settings):
+def test_announcement_has_no_optional_links_and_supports_schedule(client, settings):
     conn = connect(settings)
     try:
-        cursor = conn.execute(
+        conn.execute(
             "INSERT INTO lectures(slug, title, title_norm, status, updated_at) "
             "VALUES ('hidden-topic', 'Скрытая тема', 'скрытая тема', 'hidden', ?)",
             (utc_now_iso(),),
         )
-        lecture_id = cursor.lastrowid
     finally:
         conn.close()
-    create_announcement(
-        client,
-        title="Материал к занятию",
-        link_type="lecture",
-        lecture_id=str(lecture_id),
-        selected_groups=["1"],
+
+    login_admin(client)
+    form = client.get("/admin/announcements")
+    assert 'name="link_type"' not in form.text
+    assert 'name="lecture_id"' not in form.text
+    assert 'name="assignment_id"' not in form.text
+    assert "Скрытая тема" not in form.text
+    response = client.post(
+        "/admin/announcements",
+        data={
+            "csrf": csrf_from(form),
+            "title": "Материал к занятию",
+            "body": "Описание объявления",
+            "kind": "normal",
+            "publish_now": "1",
+            "selected_groups": ["1"],
+            "link_type": "lecture",
+            "lecture_id": "",
+            "assignment_id": "",
+        },
+        follow_redirects=False,
     )
+    assert response.status_code == 303, response.text
+    conn = connect(settings)
+    try:
+        announcement = conn.execute("SELECT * FROM announcements").fetchone()
+        assert announcement["link"] is None
+    finally:
+        conn.close()
+
     login_student(client, "link_student", 1)
     response = client.get("/announcements")
-    assert "Скрытая тема" in response.text
-    assert "пока недоступна" in response.text
+    assert "Материал к занятию" in response.text
     assert 'href="/lectures/hidden-topic"' not in response.text
     conn = connect(settings)
     try:
@@ -169,6 +189,60 @@ def test_message_thread_reply_close_and_reopen(client, settings):
     try:
         assert conn.execute("SELECT closed_at FROM threads").fetchone()[0] is None
         assert conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 3
+    finally:
+        conn.close()
+
+
+def test_message_accepts_empty_optional_references_and_has_expanded_field(client, settings):
+    login_student(client, "empty_references", 1)
+    page = client.get("/messages")
+    assert 'class="form-stack message-form"' in page.text
+    assert 'maxlength="2000" rows="8"' in page.text
+
+    response = client.post(
+        "/messages",
+        data={
+            "csrf": csrf_from(page),
+            "body": "Общий вопрос без ссылки на материалы",
+            "ref_lecture": "",
+            "ref_slide": "",
+            "ref_assignment": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+
+    conn = connect(settings)
+    try:
+        message = conn.execute("SELECT * FROM messages").fetchone()
+        assert message["body"] == "Общий вопрос без ссылки на материалы"
+        assert message["ref_lecture"] is None
+        assert message["ref_slide"] is None
+        assert message["ref_assignment"] is None
+    finally:
+        conn.close()
+
+
+def test_message_invalid_optional_reference_shows_form_error(client, settings):
+    login_student(client, "invalid_reference", 1)
+    page = client.get("/messages")
+    response = client.post(
+        "/messages",
+        data={
+            "csrf": csrf_from(page),
+            "body": "Вопрос с некорректным номером слайда",
+            "ref_lecture": "",
+            "ref_slide": "не число",
+            "ref_assignment": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    assert "Некорректное значение: слайд" in client.get("/messages").text
+
+    conn = connect(settings)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 0
     finally:
         conn.close()
 

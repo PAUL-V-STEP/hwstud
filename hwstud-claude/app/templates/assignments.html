@@ -12,7 +12,7 @@
   <p class="hint">Срок: {{ card.assignment.due_at|moscow }}</p>
   <p><a class="button secondary" href="/assignments/{{ card.assignment.id }}/export.pdf">Скачать условие в PDF</a></p>
   <p class="mono">Попытка: {{ card.latest.attempt if card.latest else 0 }} / 4</p>
-  {% if card.latest %}<p><a href="/u/{{ card.latest.id }}">Открыть загруженный файл</a></p>{% endif %}
+  {% if card.latest %}<p><a href="/u/{{ card.latest.id }}" target="_blank" rel="noopener">Открыть загруженный файл<span class="sr-only"> (в новой вкладке)</span></a></p>{% endif %}
   {% if card.latest and card.latest.status in ['revise', 'accepted', 'exhausted'] %}<div class="teacher-comment"><strong>{{ card.latest.score }} / 10</strong><p>{{ card.latest.comment }}</p></div>{% endif %}
   {% if card.can_upload %}<form method="post" action="/assignments/{{ card.assignment.id }}/submit" enctype="multipart/form-data" class="upload-work" data-upload-form><input type="hidden" name="csrf" value="{{ csrf }}"><label class="button secondary file-picker">Выбрать файл<input type="file" name="work" accept=".pdf,.jpg,.jpeg,.png,.txt,.docx" required data-file-input></label><span class="hint" data-file-name>PDF, JPG, PNG, TXT или DOCX до 10 МБ</span><progress max="100" value="0" data-upload-progress hidden></progress><button class="button primary" type="submit" data-upload-submit>Сдать работу</button><div class="form-error" data-upload-error hidden></div></form>{% endif %}
 </article>

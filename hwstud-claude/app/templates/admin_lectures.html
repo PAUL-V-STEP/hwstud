@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Учебный контент</p><h1>Лекции</h1></div><a class="help-link" href="/help/upload?view=teacher">Инструкция по загрузке лекции</a></div>
+<section class="card">
+  <div class="section-heading"><h2>Загрузить пару PPTX + PDF</h2><span class="mono">до 40 МБ каждый</span></div>
+  <form method="post" action="/admin/lectures/import" enctype="multipart/form-data" class="upload-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>PPTX с заметками<input type="file" name="pptx" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" required></label>
+    <label>PDF той же презентации<input type="file" name="pdf" accept=".pdf,application/pdf" required></label>
+    <button class="button primary" type="submit">Начать разбор</button>
+  </form>
+</section>
+{% if imports %}<section class="card"><h2>Недавние импорты</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Статус</th><th>Действие</th></tr></thead><tbody>{% for item in imports %}<tr><td>{{ item.id }}</td><td><span class="status-chip">{{ item.status }}</span></td><td><a href="/admin/lectures/import/{{ item.id }}">Открыть предпросмотр</a></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+<section class="card"><div class="section-heading"><h2>Сохранённые лекции</h2><span>{{ lectures|length }}</span></div>
+{% if lectures %}{% for lecture in lectures %}<article class="lecture-admin-row">
+  <div class="lecture-admin-title"><span class="assignment-number">{{ '%02d'|format(lecture.num or lecture.id) }}</span><div><h3>{{ lecture.title }}</h3><a href="/lectures/{{ lecture.slug }}">Студенческий просмотр</a></div></div>
+  <form method="post" action="/admin/lectures/{{ lecture.id }}/access" class="access-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="lecture-title-field">Название<input type="text" name="title" value="{{ lecture.title }}" required></label>
+    <label>Статус<select name="status"><option value="hidden" {{ 'selected' if lecture.status == 'hidden' }}>Скрыта</option><option value="open" {{ 'selected' if lecture.status == 'open' }}>Открыта</option></select></label>
+    <label>Плановая дата<input type="date" name="planned_date" value="{{ lecture.planned_date or '' }}"></label>
+    <fieldset><legend>Группы (ничего не выбрано — все)</legend>{% for group in groups %}<label class="check-label"><input type="checkbox" name="selected_groups" value="{{ group.id }}" {{ 'checked' if group.id|string in selected.get(lecture.id, []) }}> {{ group.name }}</label>{% endfor %}</fieldset>
+    <label class="check-label"><input type="checkbox" name="announce" value="1" {{ 'checked' if lecture.announce }}> Анонс названия и даты</label>
+    <button class="button secondary" type="submit">Сохранить настройки</button>
+  </form>
+  <form method="post" action="/admin/lectures/{{ lecture.id }}/student"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="text-button" type="submit">Режим студента</button></form>
+</article>{% endfor %}{% else %}<div class="empty-state"><span class="empty-symbol">▭</span><p>Лекций пока нет. Загрузите первую пару файлов.</p></div>{% endif %}
+</section>
+{% endblock %}

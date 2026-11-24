@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Последняя попытка по каждому заданию</p><h1>Результаты</h1></div><a class="button secondary" href="/admin/results.csv">Скачать CSV</a></div>
+<section class="card"><div class="table-wrap"><table><thead><tr><th>Группа</th><th>Ник</th><th>Задание</th><th>Попытка</th><th>Статус</th><th>Баллы</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.group_name }}</td><td>{{ row.nick }}</td><td>{{ row.title }}</td><td>{{ row.attempt }}</td><td><span class="status-chip">{{ row.status }}</span></td><td>{{ row.score if row.score is not none else '—' }}</td></tr>{% else %}<tr><td colspan="6">Результатов пока нет.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

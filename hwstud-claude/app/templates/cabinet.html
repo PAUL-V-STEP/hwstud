@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Личный маршрут</p><h1>Мой SWOT</h1></div><span class="mono">{{ actor.nick }}</span></div>
+<div class="swot-grid">{% for key, title, subtitle in [('S', 'Сильные стороны', 'Принятые работы и высокие баллы'), ('W', 'Слабые стороны', 'Доработки и низкие баллы'), ('O', 'Возможности', 'Открытые лекции и новые задания'), ('T', 'Угрозы', 'Сроки, попытки и экзамен')] %}<section class="card swot-{{ key|lower }}"><span class="swot-letter">{{ key }}</span><h2>{{ title }}</h2><p class="hint">{{ subtitle }}</p>{% if swot[key] %}<ul>{% for item in swot[key] %}<li><a href="{{ item.href }}">{{ item.text }}</a></li>{% endfor %}</ul>{% else %}<p class="muted">Пока нет данных для этого квадранта.</p>{% endif %}</section>{% endfor %}</div>
+{% endblock %}

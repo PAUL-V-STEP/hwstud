@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card closed-layout">
+  <img src="/static/images/content-closed-640.jpg" alt="Символ контроля доступа" width="640" height="640" decoding="async">
+  <div><p class="eyebrow">Режим экзамена</p><h1>Доступ к учебным материалам закрыт на время экзамена</h1>{% if exam_end %}<p>Окончание: {{ exam_end|moscow }}</p>{% endif %}<p>Задания, объявления, переписка и справка остаются доступны.</p><div class="button-row"><a class="button primary" href="/assignments">Перейти к заданиям</a><a class="button secondary" href="/messages">Написать преподавателю</a><a class="button secondary" href="/help">Открыть помощь</a></div></div>
+</section>
+{% endblock %}

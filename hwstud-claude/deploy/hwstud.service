@@ -1,0 +1,27 @@
+[Unit]
+Description=hwstud.ru
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hwstud
+Group=hwstud
+WorkingDirectory=/opt/hwstud/app
+EnvironmentFile=/opt/hwstud/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/hwstud/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers
+Restart=always
+RestartSec=5
+MemoryMax=1200M
+TimeoutStopSec=30
+UMask=077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+LimitNOFILE=4096
+SyslogIdentifier=hwstud
+
+[Install]
+WantedBy=multi-user.target

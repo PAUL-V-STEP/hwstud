@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Контур управления</p><h1>Панель преподавателя</h1></div><span class="stage-badge">Этап 1</span></div>
+<div class="metric-grid">
+  <section class="card metric"><span class="metric-value">{{ students }}</span><span>студентов из 80</span></section>
+  <section class="card metric"><span class="metric-value">4</span><span>группы</span></section>
+  <section class="card metric"><span class="metric-value">{{ balance.queued }}</span><span>задач в очереди</span></section>
+  <section class="card metric"><span class="metric-value">{{ balance.paused_jobs }}</span><span>на паузе</span></section>
+</div>
+<div class="admin-grid">
+  <section class="card"><div class="section-heading"><h2>Группы</h2><span class="mono">20 мест в каждой</span></div><div class="table-wrap"><table><thead><tr><th>Группа</th><th>Участников</th></tr></thead><tbody>{% for group in groups %}<tr><td>{{ group.name }}</td><td>{{ group.members }} / 20</td></tr>{% endfor %}</tbody></table></div></section>
+  <section class="card"><div class="section-heading"><h2>Состояние сервисов</h2></div><dl class="status-list"><div><dt>ProxyAPI</dt><dd><span class="status-chip">{{ balance.state.level }}</span></dd></div><div><dt>Фоновая очередь</dt><dd>Один процесс, SQLite</dd></div><div><dt>SMTP</dt><dd><a href="/admin/settings">Проверить настройки</a></dd></div><div><dt>Баланс</dt><dd><a href="/admin/settings/proxyapi">Открыть монитор</a></dd></div></dl></section>
+</div>
+<section class="card"><div class="section-heading"><h2>Очередь задач</h2></div>{% if jobs %}<div class="table-wrap"><table><thead><tr><th>Статус</th><th>Количество</th></tr></thead><tbody>{% for row in jobs %}<tr><td><code>{{ row.status }}</code></td><td>{{ row.count }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">Очередь пуста. Пробное письмо можно отправить в настройках.</p>{% endif %}</section>
+<section class="card"><div class="section-heading"><h2>Управление курсом</h2></div><div class="button-row"><a class="button secondary" href="/admin/groups">Группы и ники</a><a class="button primary" href="/admin/messages">Вопросы студентов</a><a class="button secondary" href="/admin/exam">Режим экзамена</a><a class="button secondary" href="/admin/about">О курсе и авторе</a><a class="button secondary" href="/admin/data">Данные курса</a></div></section>
+{% endblock %}

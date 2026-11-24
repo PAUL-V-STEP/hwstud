@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="card announcement-detail"><p class="eyebrow"><a href="/announcements">Объявления</a> / {{ announcement.kind }}</p><h1>{{ announcement.title }}</h1><p class="hint">{{ announcement.publish_at|moscow }}</p><div class="announcement-full-text">{{ announcement.body }}</div>{% if link %}{% if link.disabled %}<p class="disabled-link">{{ link.text }} · {{ link.reason }}</p>{% else %}<a class="button primary" href="{{ link.href }}">{{ link.text }}</a>{% endif %}{% endif %}</article>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">Маршрут курса</p><h1>Карта курса</h1></div>
+  <span class="stage-badge">Локальная версия · этап 1</span>
+</div>
+<div class="dashboard-grid">
+  <section class="card announcement-panel">
+    <div class="section-heading"><h2>Объявления</h2><a href="/announcements">Все объявления</a></div>
+    {% if announcement_items %}<div class="dashboard-announcements">{% for item in announcement_items %}<article class="dashboard-announcement kind-{{ item.announcement.kind }}"><h3><a href="/announcements/{{ item.announcement.id }}">{{ item.announcement.title }}</a></h3><p>{{ item.announcement.body }}</p>{% if item.link and not item.link.disabled %}<a href="{{ item.link.href }}">{{ item.link.text }}</a>{% endif %}</article>{% endfor %}</div>{% else %}<div class="empty-state"><span class="empty-symbol">△</span><p>Пока объявлений нет.</p></div>{% endif %}
+  </section>
+  <section class="card timeline-panel">
+    <div class="section-heading"><h2>Лекции</h2><a href="/lectures">Открыть раздел</a></div>
+    {% if lectures %}<div class="dashboard-lectures">{% for lecture in lectures %}<a href="/lectures/{{ lecture.slug }}"><span class="assignment-number">{{ '%02d'|format(lecture.num or lecture.id) }}</span>{{ lecture.title }}</a>{% endfor %}</div>{% else %}<div class="gantt-placeholder" aria-label="Лекции пока не добавлены"><span></span><span></span><span></span><i></i></div>
+    <p class="muted">Лекции появятся, когда их откроет преподаватель.</p>{% endif %}
+  </section>
+  <section class="card assignments-panel">
+    <div class="section-heading"><h2>Задания</h2><span class="mono">{{ accepted_count }} / {{ assignments|length }} принято</span></div>
+    <div class="assignment-grid">
+      {% for assignment in assignments %}{% set current = latest_submissions.get(assignment.id) %}<a class="assignment-card" href="/assignments"><span class="assignment-number">{{ '%02d'|format(assignment.position) }}</span><strong>{{ assignment.title }}</strong><span class="status-chip">{{ statuses[current.status] if current else 'Не сдано' }}</span><span class="muted">Попытка {{ current.attempt if current else 0 }} / 4</span></a>{% endfor %}
+    </div>
+  </section>
+  <aside class="card next-step">
+    <p class="eyebrow">Текущее состояние</p><h2>Начало маршрута</h2><p>Вход и личный кабинет уже работают. Лекции и сдача файлов появятся на следующих этапах.</p>
+    <div class="flow-line" aria-hidden="true"><span class="done"></span><i></i><span></span><i></i><span></span><i></i><span></span></div>
+    <a class="button secondary" href="/help">Как работает сайт</a>
+    {% if last_answer %}<div class="teacher-comment"><strong>Последний ответ преподавателя</strong><p>{{ last_answer.body }}</p><a href="/messages">Открыть переписку</a></div>{% endif %}
+  </aside>
+</div>
+{% endblock %}

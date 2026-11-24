@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Хранилище данных курса</p><h1>Глоссарий</h1></div><span class="mono">{{ terms|length }}</span></div>
+<section class="card"><form method="get" action="/glossary" class="search-form"><label class="sr-only" for="glossary-q">Поиск</label><input id="glossary-q" name="q" value="{{ q }}" placeholder="Термин или расшифровка"><input type="hidden" name="lecture" value="{{ lecture }}"><button class="button primary" type="submit">Найти</button></form>
+<div class="button-row"><a class="button secondary" href="/glossary/export/xlsx">Excel</a><a class="button secondary" href="/glossary/export/md">Markdown</a><a class="button secondary" href="/glossary/export/docx">DOCX</a><a class="button secondary" href="/glossary/export/pdf">PDF</a></div></section>
+{% if terms %}<section class="card"><div class="glossary-list">{% for term in terms %}<article class="term-row" id="term-{{ term.id }}"><h2>{{ term.term }}</h2><p>{{ term.expansion }}</p>{% if term.english %}<p class="mono">{{ term.english }}</p>{% endif %}<a href="/lectures/{{ term.slug }}">{{ term.lecture_title }}</a></article>{% endfor %}</div></section>{% else %}<section class="card empty-page"><h2>Термины не найдены</h2><p>Измените запрос или дождитесь открытия лекций.</p></section>{% endif %}
+<section class="card"><div class="section-heading"><h2>Блок для заметок PowerPoint</h2><button class="button secondary" type="button" data-copy="#powerpoint-block">Скопировать</button></div><textarea id="powerpoint-block" readonly rows="5">{{ powerpoint }}</textarea><p class="hint">Скопируйте строку в заметки слайда или <a href="/glossary/powerpoint.txt">скачайте TXT</a>.</p></section>
+{% endblock %}

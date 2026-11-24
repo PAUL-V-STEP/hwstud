@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{% if actor.is_admin %}Администрирование{% else %}Курс как процесс{% endif %}</p><h1>{{ title }}</h1></div><span class="stage-badge">Этап {{ stage }}</span></div>
+{% if is_help %}
+<div class="card help-placeholder">
+  <span class="large-help" aria-hidden="true">?</span>
+  <div><h2>Справка встроена в маршрут курса</h2>
+  <p>Сейчас доступен каркас навигации и проверка ролевого доступа. Полное содержание {% if is_upload_help %}инструкции по загрузке{% else %}правил работы с сайтом{% endif %} будет подключено на этапе 6.</p>
+  {% if actor.is_admin %}<p class="status-chip">Открыт вариант: {{ 'Преподавателю' if help_view == 'teacher' else 'Студенту' }}</p>
+  <div class="button-row"><a class="button secondary" href="?view=teacher">Преподавателю</a><a class="button secondary" href="?view=student">Студенту</a></div>{% endif %}
+  {% if not is_upload_help %}<a class="button secondary" href="/help/upload{% if actor.is_admin %}?view={{ help_view }}{% endif %}">Перейти к загрузке файлов</a>{% endif %}</div>
+</div>
+{% else %}
+<section class="card empty-page"><span class="empty-symbol">▭</span><h2>Раздел подготовлен в навигации</h2><p>Функции этого раздела реализуются на этапе {{ stage }} согласно финальным требованиям.</p><a class="button secondary" href="/">Вернуться на карту курса</a></section>
+{% endif %}
+{% endblock %}

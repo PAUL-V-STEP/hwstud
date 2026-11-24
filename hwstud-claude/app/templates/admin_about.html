@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Публичная страница</p><h1>О курсе и авторе</h1></div><a href="/about">Открыть страницу</a></div>
+<section class="card"><form method="post" action="/admin/about" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf }}"><label>Краткое описание курса<textarea name="about_text" rows="8">{{ about_text }}</textarea></label><p class="hint">Названия скрытых лекций на публичную страницу не попадают. Автор и принцип проверки показываются отдельно.</p><button class="button primary" type="submit">Сохранить текст</button></form></section>
+{% endblock %}

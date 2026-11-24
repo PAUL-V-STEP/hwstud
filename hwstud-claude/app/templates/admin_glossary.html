@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Редактирование справочника</p><h1>Глоссарий</h1></div><a href="/glossary">Вид студента</a></div>
+<section class="card">
+  <p class="hint">«Проверено» делает термин видимым в открытых лекциях. «Скрыто» убирает его у студентов без удаления. «Удалить» удаляет термин и все его связи с лекциями.</p>
+  {% for item in terms %}
+  <form method="post" action="/admin/glossary/{{ item.id }}" class="admin-edit-row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="term" value="{{ item.term }}" aria-label="Термин" required>
+    <input name="expansion" value="{{ item.expansion }}" aria-label="Расшифровка" required>
+    <input name="english" value="{{ item.english or '' }}" aria-label="Английский оригинал">
+    <select name="status" aria-label="Статус"><option value="draft" {{ 'selected' if item.status == 'draft' }}>Черновик</option><option value="verified" {{ 'selected' if item.status == 'verified' }}>Проверено</option><option value="hidden" {{ 'selected' if item.status == 'hidden' }}>Скрыто</option></select>
+    <span class="muted">Слайдов с термином: {{ item.refs }}</span>
+    <div class="admin-row-actions">
+      <button class="button secondary" type="submit">Сохранить</button>
+      <button class="button secondary" type="submit" formaction="/admin/glossary/{{ item.id }}/delete" formnovalidate aria-label="Удалить термин {{ item.term }}">Удалить</button>
+    </div>
+  </form>
+  {% else %}<p class="muted">Термины появятся после импорта лекций.</p>{% endfor %}
+</section>
+{% endblock %}

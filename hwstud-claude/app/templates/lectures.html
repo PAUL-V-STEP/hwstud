@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">План и содержание</p><h1>Лекции</h1></div><span class="mono">{{ items|length }}</span></div>
+{% if items %}<div class="lecture-catalog">{% for item in items %}<article class="card lecture-catalog-card {% if item.announce_only %}announce-only{% endif %}"><span class="assignment-number">{{ '%02d'|format(item.lecture.num or item.lecture.id) }}</span><h2>{{ item.lecture.title }}</h2>{% if item.announce_only %}<p class="muted">Анонс · плановая дата {{ item.lecture.planned_date }}</p><span class="status-chip">Пока недоступна</span>{% else %}<p class="muted">Слайды и текст к ним</p><a class="button secondary" href="/lectures/{{ item.lecture.slug }}">Открыть лекцию</a>{% endif %}</article>{% endfor %}</div>{% else %}<section class="card empty-page"><div class="gantt-placeholder"><span></span><span></span><span></span><i></i></div><h2>Лекции появятся позже</h2><p>Лекции появятся, когда их откроет преподаватель.</p></section>{% endif %}
+{% endblock %}

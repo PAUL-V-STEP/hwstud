@@ -1,0 +1,20 @@
+hwstud.ru, www.hwstud.ru {
+    encode zstd gzip
+    request_body {
+        max_size 90MB
+    }
+    handle /static/* {
+        root * /opt/hwstud/app
+        file_server
+        header Cache-Control "public, max-age=604800"
+    }
+    handle {
+        reverse_proxy 127.0.0.1:8000
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        Content-Security-Policy "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+}

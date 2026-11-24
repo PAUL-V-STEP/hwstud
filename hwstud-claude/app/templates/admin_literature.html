@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Тип, аннотация и важность</p><h1>Литература</h1></div><a href="/literature">Вид студента</a></div>
+{% for source in sources %}
+<form method="post" action="/admin/literature/{{ source.id }}" class="card admin-source-form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2>{{ source.title }}</h2>
+  <p class="muted">{{ source.author }} · {{ source.url }}</p>
+  <label>Тип<input name="type" value="{{ source.type or '' }}"></label>
+  <label>Аннотация<textarea name="annotation" rows="3">{{ source.annotation or '' }}</textarea></label>
+  <label>Важность<select name="priority"><option value="main" {{ 'selected' if source.priority == 'main' }}>Основное</option><option value="extra" {{ 'selected' if source.priority == 'extra' }}>Дополнительное</option></select></label>
+  <div class="admin-row-actions">
+    <button class="button secondary" type="submit">Сохранить</button>
+    <button class="button secondary" type="submit" formaction="/admin/literature/{{ source.id }}/delete" formnovalidate aria-label="Удалить источник {{ source.title }}">Удалить</button>
+  </div>
+  <p class="hint">Удаление убирает источник и все его связи с лекциями.</p>
+</form>
+{% else %}<section class="card"><p class="muted">Источники появятся после импорта лекций.</p></section>{% endfor %}
+{% endblock %}

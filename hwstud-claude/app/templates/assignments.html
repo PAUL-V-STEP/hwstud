@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Матрица Эйзенхауэра</p><h1>Задания</h1></div><a class="help-link" href="/help/upload">Как загрузить работу</a></div>
+{% if cards %}
+{% for quadrant, title in [('Q1', 'Сделать сейчас'), ('Q2', 'Запланировать'), ('Q3', 'Ждёт проверки'), ('Q4', 'Завершено')] %}
+<section class="assignment-quadrant"><div class="section-heading"><h2>{{ quadrant }} · {{ title }}</h2><span class="mono">{{ cards|selectattr('quadrant', 'equalto', quadrant)|list|length }}</span></div><div class="assignment-matrix">
+{% for card in cards if card.quadrant == quadrant %}
+<article class="card task-card" id="assignment-{{ card.assignment.id }}">
+  <div class="section-heading"><span class="assignment-number">{{ '%02d'|format(card.assignment.position) }}</span><span class="status-chip status-{{ card.latest.status if card.latest else 'not_submitted' }}">{{ card.status_text }}</span></div>
+  <h2>{{ card.assignment.title }}</h2>
+  <div class="assignment-condition">{{ card.assignment.condition or 'Условие будет добавлено преподавателем.' }}</div>
+  <p class="hint">Срок: {{ card.assignment.due_at|moscow }}</p>
+  <p><a class="button secondary" href="/assignments/{{ card.assignment.id }}/export.pdf">Скачать условие в PDF</a></p>
+  <p class="mono">Попытка: {{ card.latest.attempt if card.latest else 0 }} / 4</p>
+  {% if card.latest %}<p><a href="/u/{{ card.latest.id }}">Открыть загруженный файл</a></p>{% endif %}
+  {% if card.latest and card.latest.status in ['revise', 'accepted', 'exhausted'] %}<div class="teacher-comment"><strong>{{ card.latest.score }} / 10</strong><p>{{ card.latest.comment }}</p></div>{% endif %}
+  {% if card.can_upload %}<form method="post" action="/assignments/{{ card.assignment.id }}/submit" enctype="multipart/form-data" class="upload-work" data-upload-form><input type="hidden" name="csrf" value="{{ csrf }}"><label class="button secondary file-picker">Выбрать файл<input type="file" name="work" accept=".pdf,.jpg,.jpeg,.png,.txt,.docx" required data-file-input></label><span class="hint" data-file-name>PDF, JPG, PNG, TXT или DOCX до 10 МБ</span><progress max="100" value="0" data-upload-progress hidden></progress><button class="button primary" type="submit" data-upload-submit>Сдать работу</button><div class="form-error" data-upload-error hidden></div></form>{% endif %}
+</article>
+{% endfor %}
+</div></section>
+{% endfor %}
+{% else %}
+<section class="card empty-page"><h2>Задания пока не добавлены</h2><p>Преподаватель пока не включил домашние задания.</p></section>
+{% endif %}
+<script src="/static/js/uploads.js" defer></script>
+{% endblock %}

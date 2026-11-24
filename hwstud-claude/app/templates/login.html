@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login-layout">
+  <div class="login-process" aria-hidden="true"><span>○</span><i></i><span>Вход</span><i></i><span>●</span></div>
+  <div class="card login-card">
+    <p class="eyebrow">Курс · рабочая тетрадь</p>
+    <h1>{{ title }}</h1>
+    <p class="lead">Войдите по нику. Пароль, ФИО и почта не нужны.</p>
+    {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/login" class="form-stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if show_groups %}<input type="hidden" name="nick" value="{{ nick }}">{% endif %}
+      {% if not show_groups %}
+      <label for="nick">Ник</label>
+      <input id="nick" name="nick" value="{{ nick }}" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]+" autocomplete="username" autofocus aria-describedby="nick-hint">
+      <p id="nick-hint" class="hint">3–24 символа: латинские буквы, цифры, _ и -. Не используйте фамилию и имя полностью.</p>
+      {% else %}
+      <p class="new-nick">Ник <strong>{{ nick }}</strong> ещё не зарегистрирован. Выберите группу для первого входа.</p>
+      <fieldset class="group-picker"><legend>Ваша группа</legend>
+        {% for group in groups %}<label class="group-option"><input type="radio" name="group_id" value="{{ group.id }}" required><span>{{ group.name }}</span></label>{% endfor %}
+      </fieldset>
+      {% endif %}
+      <button class="button primary" type="submit">{{ 'Войти и создать ник' if show_groups else 'Продолжить' }}</button>
+    </form>
+    <a class="admin-entry" href="/admin/login">Вход преподавателя</a>
+  </div>
+</section>
+{% endblock %}

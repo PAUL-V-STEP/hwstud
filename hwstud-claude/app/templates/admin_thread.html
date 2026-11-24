@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ student.group_name }} · {{ student.nick }}</p><h1>Переписка</h1></div>{% if thread and thread.closed_at %}<span class="status-chip">Вопрос решён</span>{% endif %}</div>
+<section class="card conversation">{% for item in items %}<article class="message-card {{ 'teacher-message' if item.message.author == 'teacher' else 'student-message' }}"><p class="eyebrow">{{ 'Преподаватель' if item.message.author == 'teacher' else student.nick }}</p><p>{{ item.message.body }}</p><span class="hint">{{ item.topic }}</span><time>{{ item.message.created_at|moscow }}</time></article>{% else %}<p class="muted">Сообщений нет.</p>{% endfor %}</section>
+<section class="card"><h2>Ответ на сайте</h2><form method="post" action="/admin/messages/{{ student.id }}/reply" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf }}"><textarea name="body" maxlength="2000" rows="5" required placeholder="Ответ студенту"></textarea><button class="button primary" type="submit">Отправить ответ</button></form><p class="hint">Ответ появится на сайте. Почтового адреса студента нет.</p></section>
+<form method="post" action="/admin/messages/{{ student.id }}/close"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button secondary" type="submit">Вопрос решён</button></form>
+{% endblock %}

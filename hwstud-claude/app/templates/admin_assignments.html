@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Условия и критерии</p><h1>Редактирование заданий</h1></div><div class="button-row"><a href="/assignments">Вид студента</a><a href="/admin/submissions">Очередь проверки</a></div></div>
+<section class="card">
+  <h2>Структура домашних заданий</h2>
+  <p class="hint">Текущий набор используется в карточках, сдаче работ, результатах, PDF, SWOT и вопросах преподавателю. При уменьшении числа задания скрываются без удаления данных.</p>
+  <form method="post" action="/admin/assignments/count" class="assignment-count-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="assignments-count">Число домашних заданий</label>
+    <input id="assignments-count" name="count" type="number" min="0" max="10" step="1" value="{{ assignments|length }}" required>
+    <button class="button primary" type="submit">Применить число</button>
+  </form>
+</section>
+<p class="hint">Добавьте или измените тексты заданий. Кнопки «Вверх» и «Вниз» меняют их номера и последовательность. Эталон, критерии и типичные ошибки видны только преподавателю; студент может прочитать условие и скачать его в PDF.</p>
+{% for assignment in assignments %}
+<form method="post" action="/admin/assignments/{{ assignment.id }}" class="card assignment-edit">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="section-heading">
+    <h2>Задание {{ assignment.position }}</h2>
+    <div class="reorder-actions" role="group" aria-label="Перемещение задания {{ assignment.position }}">
+      <button class="button secondary" type="submit" formaction="/admin/assignments/{{ assignment.id }}/move/up" formnovalidate {{ 'disabled' if loop.first }}>↑ Вверх</button>
+      <button class="button secondary" type="submit" formaction="/admin/assignments/{{ assignment.id }}/move/down" formnovalidate {{ 'disabled' if loop.last }}>↓ Вниз</button>
+      <span class="mono">порог {{ assignment.threshold }}</span>
+    </div>
+  </div>
+  <label>Название<input name="title" value="{{ assignment.title }}" required></label>
+  <label>Условие<textarea name="condition" rows="4">{{ assignment.condition }}</textarea></label>
+  <label>Эталонное решение<textarea name="reference" rows="4">{{ assignment.reference }}</textarea></label>
+  <label>Критерии оценки<textarea name="criteria" rows="4">{{ assignment.criteria }}</textarea></label>
+  <label>Типичные ошибки<textarea name="typical_errors" rows="3">{{ assignment.typical_errors }}</textarea></label>
+  <div class="form-columns"><label>Порог уверенности<input name="threshold" type="number" min="0" max="1" step="0.05" value="{{ assignment.threshold }}"></label><label>Срок по Москве<input name="due_at" type="datetime-local" value="{% if assignment.due_at %}{{ assignment.due_at|moscow_input }}{% endif %}"></label></div>
+  <p class="hint">Секретные для студентов поля не показываются. Уже выставленные оценки не пересчитываются.</p>
+  <button class="button primary" type="submit">Сохранить задание</button>
+</form>
+{% else %}
+<section class="card empty-page"><h2>Задания отключены</h2><p>Установите число от 1 до 10, чтобы показать существующие задания или создать новые.</p></section>
+{% endfor %}
+{% endblock %}

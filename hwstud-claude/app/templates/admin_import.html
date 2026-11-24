@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Файлы → проверки → сохранение</p><h1>Предпросмотр лекции</h1></div><span class="status-chip">{{ import.status }}</span></div>
+<div class="flow-line import-flow" aria-hidden="true"><span class="done"></span><i></i><span class="{{ 'done' if import.status in ['ready', 'saved', 'waiting_gpt', 'paused_no_funds'] }}"></span><i></i><span class="{{ 'done' if import.status == 'saved' }}"></span></div>
+{% if import.status == 'processing' %}<section class="card"><h2>Идёт разбор</h2><p>PPTX и PDF обрабатываются в фоне. Обновите страницу через несколько секунд.</p><a class="button secondary" href="/admin/lectures/import/{{ import_id }}">Обновить</a></section>{% endif %}
+{% if report.errors %}<section class="card error-panel"><h2>Сохранение заблокировано</h2><ul>{% for error in report.errors %}<li>{{ error }}</li>{% endfor %}</ul></section>{% endif %}
+{% if report.warnings %}<section class="card warning-panel"><h2>Предупреждения</h2><ul>{% for warning in report.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>{% endif %}
+{% if import.status in ['waiting_gpt', 'paused_no_funds'] %}<section class="card"><h2>Служебный разбор GPT ещё не завершён</h2><p>Сохранение станет доступным после всех задач. Без подтверждения моделей и при паузе баланса платные запросы не отправляются.</p></section>{% endif %}
+{% if report.review_confirmed %}<div class="flash success">Состав глоссария и литературы подтверждён.</div>{% endif %}
+{% if term_review or source_review or report.complex_abbreviations or report.abbreviations or report.gpt_candidate_count or report.sources %}
+<section class="card review-panel"><div class="section-heading"><h2>Подтверждение глоссария и литературы</h2><span class="mono">Только требующие уточнения</span></div>
+<p class="hint">Согласованные термины с единственной непустой расшифровкой принимаются автоматически и не занимают список. Показаны только конфликты и записи, требующие уточнения. Чекбокс включает запись в сохранение этой лекции; его снятие не удаляет существующую запись. Удаление выполняется в разделах «Глоссарий» и «Литература».</p>
+<form method="post" action="/admin/lectures/import/{{ import_id }}/confirm">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% set needed = term_review|selectattr('requires_review')|list %}
+{% if needed %}<h3>Термины, требующие уточнения: {{ needed|length }}</h3>
+{% for item in needed %}{% set actual_index = term_review.index(item) %}<article class="review-item">
+<label class="check-label"><input type="checkbox" name="terms" value="{{ actual_index }}" checked> <strong>{{ item.term }}</strong><span class="status-chip">{{ 'Конфликт' if item.category == 'conflict' else 'Нужно уточнение' }}</span></label>
+<label>Вариант расшифровки<select name="variant_{{ actual_index }}" data-variant-select data-target="{{ actual_index }}">{% for variant in item.variants %}<option value="{{ loop.index0 }}" data-expansion="{{ variant.expansion }}" data-english="{{ variant.english }}">{{ variant.expansion or 'Требует заполнения' }}</option>{% endfor %}</select></label>
+<label>Итоговая расшифровка<input name="expansion_{{ actual_index }}" data-expansion-input="{{ actual_index }}" value="{{ item.variants[0].expansion }}" placeholder="Введите расшифровку"></label>
+<label>Английский оригинал<input name="english_{{ actual_index }}" data-english-input="{{ actual_index }}" value="{{ item.variants[0].english }}"></label>
+<p class="hint">Слайды: {{ item.slide_numbers|join(', ') }}</p></article>{% endfor %}
+{% else %}<p class="muted">Все доступные термины согласованы автоматически.</p>{% endif %}
+{% if source_review %}<h3>Источники для подтверждения</h3>{% for item in source_review %}{% set actual_index = source_review.index(item) %}<article class="review-item">
+<label class="check-label"><input type="checkbox" name="sources" value="{{ actual_index }}" checked> <strong>{{ item.title }}</strong><span class="status-chip">{{ item.category }}</span></label>
+<label>Название<input name="source_title_{{ actual_index }}" value="{{ item.title }}" required></label>
+<label>Автор<input name="source_author_{{ actual_index }}" value="{{ item.author }}"></label>
+<p class="hint">{{ item.url }}</p>{% if item.type %}<p class="hint">Тип: {{ item.type }}</p>{% endif %}{% if item.annotation %}<p>{{ item.annotation }}</p>{% endif %}</article>{% endfor %}{% endif %}
+<button class="button primary" type="submit" {{ 'disabled' if import.status != 'ready' }}>Подтвердить выбранные записи</button>
+</form></section>
+{% endif %}
+{% if report.title %}
+<section class="card"><div class="section-heading"><h2>{{ report.title }}</h2><span class="mono">{{ report.slides|length }} слайдов</span></div><p class="muted">{% if target %}Будет обновлена лекция «{{ target.title }}» по прежней ссылке.{% else %}Будет создана новая скрытая лекция.{% endif %}</p>
+{% if report.header_lines %}<p><strong>Общие служебные строки:</strong> {{ report.header_lines|join(' · ') }}</p>{% endif %}
+<div class="preview-grid">{% for slide in report.slides %}<article class="preview-slide"><img src="/admin/lectures/import/{{ import_id }}/image/{{ slide.n }}" alt="Слайд {{ slide.n }}" loading="lazy" width="640" height="360"><h3>{{ slide.n }}. {{ slide.title }}</h3><div class="notes-preview">{{ slide.notes_html|safe }}</div></article>{% endfor %}</div></section>
+{% endif %}
+<div class="button-row card">
+  {% if import.status == 'ready' %}<form method="post" action="/admin/lectures/import/{{ import_id }}/save" class="save-form"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="lecture-title">Название перед сохранением</label><input id="lecture-title" name="title" value="{{ report.title }}" required><button class="button primary" type="submit">{{ 'Обновить лекцию' if target else 'Сохранить на сайте' }}</button></form>{% endif %}
+  {% if import.status not in ['processing', 'saving', 'saved', 'cancelled'] %}<form method="post" action="/admin/lectures/import/{{ import_id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button secondary" type="submit">Отменить и удалить исходники</button></form>{% endif %}
+  <a class="button secondary" href="/admin/lectures">К списку лекций</a>
+</div>
+{% endblock %}

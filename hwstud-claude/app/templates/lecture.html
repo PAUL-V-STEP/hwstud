@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block body_class %}lecture-page{% endblock %}
+{% block content %}
+<div class="page-heading lecture-heading"><div><p class="eyebrow"><a href="/lectures">Лекции</a> / {{ '%02d'|format(lecture.num or lecture.id) }}</p><h1>{{ lecture.title }}</h1></div><div class="button-row"><a class="button secondary" href="/lectures/{{ lecture.slug }}{% if not conspectus %}/conspectus{% endif %}">{{ 'Конспект' if not conspectus else 'Слайд + текст' }}</a></div></div>
+<div class="reference-links"><a href="/glossary?lecture={{ lecture.slug }}">Сокращения лекции</a><a href="/literature?lecture={{ lecture.slug }}">Литература лекции</a></div>
+{% if lecture.header_lines %}<div class="lecture-note">{{ lecture.header_lines|join(' · ') }}</div>{% endif %}
+{% if conspectus %}
+<article class="conspectus">{% for slide in slides %}<section class="card conspectus-slide" id="slide-{{ slide.n }}"><a href="/lectures/{{ lecture.slug }}/s/{{ slide.n }}" class="slide-anchor">Слайд {{ slide.n }}</a><img src="/l/{{ lecture.slug }}/t/{{ slide.n }}.webp" alt="{{ slide.title }}" width="320" height="180" loading="lazy"><div class="slide-notes">{{ slide.notes_html|terms(terms)|citations(lecture.slug)|safe }}</div></section>{% endfor %}</article>
+{% else %}
+<div class="slide-layout" data-slide-viewer data-base="/lectures/{{ lecture.slug }}/s" data-current="{{ current.n }}" data-total="{{ slides|length }}">
+  <section class="card slide-stage">
+    <div class="slide-meta"><span class="mono">Слайд {{ current.n }} / {{ slides|length }}</span><a href="/lectures/{{ lecture.slug }}/s/{{ current.n }}">Ссылка на слайд</a></div>
+    <img class="slide-image" data-slide-image src="/l/{{ lecture.slug }}/s/{{ current.n }}.webp" alt="{{ current.title }}" width="1600" height="900" decoding="async">
+    <div class="slide-controls">{% if current.n > 1 %}<a class="button secondary" data-prev href="/lectures/{{ lecture.slug }}/s/{{ current.n - 1 }}">← Предыдущий</a>{% endif %}<span></span>{% if current.n < slides|length %}<a class="button secondary" data-next href="/lectures/{{ lecture.slug }}/s/{{ current.n + 1 }}">Следующий →</a>{% endif %}</div>
+  </section>
+  <aside class="card slide-text"><p class="eyebrow">Текст к слайду</p><h2>{{ current.title }}</h2><div class="slide-notes">{{ current.notes_html|terms(terms)|citations(lecture.slug)|safe }}</div></aside>
+  <nav class="slide-strip" aria-label="Слайды лекции">{% for slide in slides %}<a class="{{ 'active' if slide.n == current.n }}" href="/lectures/{{ lecture.slug }}/s/{{ slide.n }}" aria-label="Слайд {{ slide.n }}"><img src="/l/{{ lecture.slug }}/t/{{ slide.n }}.webp" alt="" width="320" height="180" loading="lazy"><span>{{ slide.n }}</span></a>{% endfor %}</nav>
+</div>
+{% endif %}
+<script src="/static/js/slides.js" defer></script>
+{% endblock %}

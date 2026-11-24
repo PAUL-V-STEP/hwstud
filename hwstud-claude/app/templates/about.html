@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="about-layout">
+  <header class="about-hero card"><p class="eyebrow">AI × человеческий интеллект</p><h1>О курсе и авторе</h1><p class="lead">{{ about_text }}</p><div class="flow-line" aria-hidden="true"><span class="done"></span><i></i><span></span><i></i><span></span></div></header>
+  <section class="card"><h2>Темы лекций</h2>{% if lectures %}<ol class="lecture-list">{% for lecture in lectures %}<li>{{ lecture.title }}</li>{% endfor %}</ol>{% else %}<p class="muted">Названия появятся после открытия первых лекций.</p>{% endif %}</section>
+  <section class="card"><h2>Как проверяются работы</h2><p>ИИ предлагает вердикт, баллы и комментарий. Преподаватель решает, какой результат получит студент.</p></section>
+  <section class="card author-card"><p class="eyebrow">Автор курса</p><h2>П. В. Степанов</h2><a href="https://ai-and-hi.pplx.app" rel="noopener noreferrer">Портфолио AI&HI</a></section>
+</article>
+{% endblock %}

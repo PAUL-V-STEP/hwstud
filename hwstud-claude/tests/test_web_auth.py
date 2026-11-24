@@ -184,11 +184,14 @@ def test_static_theme_and_public_about(client):
     assert 'src="http' not in response.text
     assert 'class="about-author-logo logo-light"' in response.text
     assert 'class="about-author-logo logo-dark"' in response.text
-    assert 'app.css?v=20261124-4' in response.text
+    assert 'app.css?v=20261124-5' in response.text
     css_response = client.get("/static/css/app.css")
     assert css_response.status_code == 200
     assert ".author-brand img{display:block;width:192px;height:64px" in css_response.text
     assert ".about-author-logo{display:block;width:240px;height:80px" in css_response.text
+    assert "img.logo-dark{display:none}" in css_response.text
+    assert ':root[data-theme="dark"] img.logo-light{display:none}' in css_response.text
+    assert css_response.text.index("img.logo-dark{display:none}") > css_response.text.index(".author-brand img{")
     assert client.get("/static/js/app.js").status_code == 200
     response = client.get("/health")
     assert response.json()["status"] == "ok"

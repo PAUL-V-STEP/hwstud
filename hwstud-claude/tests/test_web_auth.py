@@ -204,7 +204,7 @@ def test_student_navigation_has_responsive_menu(client):
 
 def test_form_scroll_preservation_script_is_versioned_and_scoped(client):
     page = client.get("/about")
-    assert 'src="/static/js/app.js?v=20261125-3"' in page.text
+    assert 'src="/static/js/app.js?v=20261125-4"' in page.text
     assert 'src="/static/js/registration.js?v=20261125-1"' in page.text
     script = client.get("/static/js/app.js").text
     assert "sessionStorage.setItem(formScrollKey" in script
@@ -215,7 +215,8 @@ def test_form_scroll_preservation_script_is_versioned_and_scoped(client):
     assert "document.querySelectorAll('[data-password-toggle]')" in script
     assert "input.type = visible ? 'text' : 'password'" in script
     assert "button.hidden = false" in script
-    assert "Скрыть личный ключ" in script
+    assert "const subject = button.dataset.label || 'личный ключ'" in script
+    assert "`Скрыть ${subject}`" in script
 
 
 def test_static_theme_and_public_about(client):

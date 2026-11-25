@@ -93,6 +93,24 @@ def test_existing_custom_password_can_be_changed_from_settings(client, settings)
     assert login_admin(client, "Another-Strong-Password-2026").status_code == 303
 
 
+def test_password_change_has_eye_toggle_for_all_three_fields(client):
+    login_admin(client)
+    response = client.get("/admin/settings/password")
+    assert response.status_code == 200
+    assert response.text.count("data-password-toggle=") == 3
+    for field, label in (
+        ("current-password", "текущий пароль"),
+        ("new-password", "новый пароль"),
+        ("confirm-password", "повтор нового пароля"),
+    ):
+        assert f'data-password-toggle="{field}"' in response.text
+        assert f'data-label="{label}"' in response.text
+        assert f'aria-label="Показать {label}"' in response.text
+        assert f'aria-controls="{field}"' in response.text
+    assert response.text.count('type="password"') == 3
+    assert response.text.count('class="password-toggle"') == 3
+
+
 def test_wrong_current_password_does_not_change_hash(client, settings):
     login_admin(client)
     response = client.get("/admin/settings/password")

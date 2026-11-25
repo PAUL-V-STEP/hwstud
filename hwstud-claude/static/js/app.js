@@ -155,11 +155,12 @@
     const input = document.getElementById(button.dataset.passwordToggle);
     if (!input) return;
     button.hidden = false;
+    const subject = button.dataset.label || 'личный ключ';
     button.addEventListener('click', () => {
       const visible = input.type === 'password';
       input.type = visible ? 'text' : 'password';
       button.setAttribute('aria-pressed', String(visible));
-      const label = visible ? 'Скрыть личный ключ' : 'Показать личный ключ';
+      const label = visible ? `Скрыть ${subject}` : `Показать ${subject}`;
       button.setAttribute('aria-label', label);
       button.title = label;
       input.focus({preventScroll: true});

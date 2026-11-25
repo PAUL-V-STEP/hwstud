@@ -10,7 +10,7 @@ from .conftest import csrf_from, login_admin, login_student
 def test_student_first_and_repeat_login(client, settings):
     response = client.get("/login")
     assert response.status_code == 200
-    assert "ФИО" in response.text
+    assert 'name="nick"' in response.text
     response = login_student(client, "Ivan_2")
     assert response.headers["location"] == "/"
     response = client.get("/")
@@ -34,6 +34,12 @@ def test_student_login_has_no_nick_hint(client):
     assert 'id="nick-hint"' not in response.text
     assert 'aria-describedby="nick-hint"' not in response.text
     assert "3–24 символа" not in response.text
+    assert "Войдите по нику" not in response.text
+    assert "Пароль, ФИО и почта не нужны" not in response.text
+    assert 'autocomplete="username"' not in response.text
+    assert response.text.count('autocomplete="off"') == 2
+    assert 'autocorrect="off"' in response.text
+    assert 'autocapitalize="none"' in response.text
 
 
 def test_invalid_nick_and_csrf(client):

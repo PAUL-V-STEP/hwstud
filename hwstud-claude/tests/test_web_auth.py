@@ -87,6 +87,14 @@ def test_blocked_student_session_is_rejected(client, settings):
     assert response.headers["location"] == "/login"
 
 
+def test_admin_login_has_no_initial_password_guidance(client):
+    response = client.get("/admin/login")
+    assert response.status_code == 200
+    assert "При первом входе используйте пароль" not in response.text
+    assert "Если пароль уже настроен" not in response.text
+    assert 'name="password"' in response.text
+
+
 def test_admin_login_and_role_separation(client):
     response = login_admin(client, "wrong")
     assert response.status_code == 403

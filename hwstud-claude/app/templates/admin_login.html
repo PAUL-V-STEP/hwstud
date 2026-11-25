@@ -4,7 +4,6 @@
   <div class="card login-card admin-login-card">
     <p class="eyebrow">Закрытая область</p>
     <h1>Вход преподавателя</h1>
-    <p class="lead">При первом входе используйте пароль <code>admin</code>. Сайт сразу потребует установить новый пароль. Если пароль уже настроен, используйте его.</p>
     {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/admin/login" class="form-stack">
       <input type="hidden" name="csrf" value="{{ csrf }}">

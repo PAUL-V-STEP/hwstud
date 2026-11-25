@@ -28,6 +28,14 @@ def test_student_first_and_repeat_login(client, settings):
         conn.close()
 
 
+def test_student_login_has_no_nick_hint(client):
+    response = client.get("/login")
+    assert response.status_code == 200
+    assert 'id="nick-hint"' not in response.text
+    assert 'aria-describedby="nick-hint"' not in response.text
+    assert "3–24 символа" not in response.text
+
+
 def test_invalid_nick_and_csrf(client):
     response = client.get("/login")
     csrf = csrf_from(response)

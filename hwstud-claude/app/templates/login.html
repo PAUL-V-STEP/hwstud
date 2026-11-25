@@ -12,8 +12,7 @@
       {% if show_groups %}<input type="hidden" name="nick" value="{{ nick }}">{% endif %}
       {% if not show_groups %}
       <label for="nick">Ник</label>
-      <input id="nick" name="nick" value="{{ nick }}" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]+" autocomplete="username" autofocus aria-describedby="nick-hint">
-      <p id="nick-hint" class="hint">3–24 символа: латинские буквы, цифры, _ и -. Не используйте фамилию и имя полностью.</p>
+      <input id="nick" name="nick" value="{{ nick }}" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]+" autocomplete="username" autofocus>
       {% else %}
       <p class="new-nick">Ник <strong>{{ nick }}</strong> ещё не зарегистрирован. Выберите группу для первого входа.</p>
       <fieldset class="group-picker"><legend>Ваша группа</legend>

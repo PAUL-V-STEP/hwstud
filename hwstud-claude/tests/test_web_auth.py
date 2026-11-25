@@ -48,6 +48,19 @@ def test_group_selection_allows_returning_to_nick_edit(client):
     assert '<a class="button secondary" href="/login">Изменить ник</a>' in response.text
 
 
+def test_login_pages_have_no_author_or_developer_links(client):
+    for path in ("/login", "/admin/login"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert 'href="/about"' not in response.text
+        assert "https://ai-and-hi.pplx.app" not in response.text
+        assert "О курсе" not in response.text
+        assert '<div class="author-brand">' in response.text
+        assert '<a class="author-brand"' not in response.text
+        assert response.text.count('class="logo-light"') == 1
+        assert response.text.count('class="logo-dark"') == 1
+
+
 def test_blocked_student_session_is_rejected(client, settings):
     login_student(client)
     conn = connect(settings)
@@ -182,16 +195,29 @@ def test_static_theme_and_public_about(client):
     assert response.status_code == 200
     assert "ИИ предлагает" in response.text
     assert 'src="http' not in response.text
-    assert 'class="about-author-logo logo-light"' in response.text
-    assert 'class="about-author-logo logo-dark"' in response.text
-    assert 'app.css?v=20261124-5' in response.text
+    assert response.text.count('class="about-author-logo logo-light"') == 1
+    assert response.text.count('class="about-author-logo logo-dark"') == 1
+    assert 'class="author-brand"' not in response.text
+    assert 'app.css?v=20261125-1' in response.text
     css_response = client.get("/static/css/app.css")
     assert css_response.status_code == 200
     assert ".author-brand img{display:block;width:192px;height:64px" in css_response.text
     assert ".about-author-logo{display:block;width:240px;height:80px" in css_response.text
-    assert "img.logo-dark{display:none}" in css_response.text
-    assert ':root[data-theme="dark"] img.logo-light{display:none}' in css_response.text
-    assert css_response.text.index("img.logo-dark{display:none}") > css_response.text.index(".author-brand img{")
+    assert "@media(min-width:768px){.author-brand img{width:144px;height:48px}.about-author-logo{width:180px;height:60px}}" in css_response.text
+    assert "img.logo-dark{display:none!important}" in css_response.text
+    assert ':root[data-theme="dark"] img.logo-light{display:none!important}' in css_response.text
+    assert ':root[data-theme="dark"] img.logo-dark{display:block!important}' in css_response.text
+    assert css_response.text.index("img.logo-dark{display:none!important}") > css_response.text.index(".author-brand img{")
     assert client.get("/static/js/app.js").status_code == 200
     response = client.get("/health")
     assert response.json()["status"] == "ok"
+
+
+def test_student_pages_have_one_logo_location(client):
+    login_student(client)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.text.count('<a class="author-brand"') == 1
+    assert response.text.count('class="logo-light"') == 1
+    assert response.text.count('class="logo-dark"') == 1
+    assert response.text.count("about-author-logo") == 0

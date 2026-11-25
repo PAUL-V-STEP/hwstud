@@ -55,7 +55,7 @@ def _back_navigation(request: Request, actor: Actor | None, values: dict[str, An
     if path == "/admin/login":
         return "/login", "Ко входу студента"
     if path == "/login":
-        return "/about", "О курсе"
+        return None
     if path == "/glossary" or path == "/literature":
         slug = values.get("lecture")
         if slug:

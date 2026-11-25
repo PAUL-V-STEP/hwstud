@@ -184,7 +184,7 @@ def test_back_navigation_covers_nested_forms_and_fallbacks():
         (student, "/lectures/open-lecture", ("/lectures", "К списку лекций")),
         (student, "/lectures/open-lecture/conspectus", ("/lectures/open-lecture", "К просмотру лекции")),
         (student, "/new-form", ("/", "Карта курса")),
-        (None, "/login", ("/about", "О курсе")),
+        (None, "/login", None),
         (None, "/admin/login", ("/login", "Ко входу студента")),
         (None, "/unlisted", ("/login", "Ко входу")),
     )

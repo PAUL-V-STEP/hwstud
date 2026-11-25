@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>{{ title }} — hwstud</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20261124-5">
+  <link rel="stylesheet" href="/static/css/app.css?v=20261125-1">
   <script src="/static/js/app.js?v=20261124-1" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}" id="top">
@@ -77,13 +77,15 @@
   </nav>
   {% endif %}
 
+  {% set login_page = request.url.path in ['/login', '/admin/login'] %}
   <footer class="site-footer">
-    <a href="/about">О курсе и авторе</a>
-    {% if not actor or not actor.is_admin %}
-    <a class="author-brand" href="https://ai-and-hi.pplx.app" rel="noopener noreferrer">Разработка курса и сайта
+    {% if not login_page %}<a href="/about">О курсе и авторе</a>{% endif %}
+    {% if (not actor or not actor.is_admin) and request.url.path != '/about' %}
+      {% if login_page %}<div class="author-brand">{% else %}<a class="author-brand" href="https://ai-and-hi.pplx.app" rel="noopener noreferrer">{% endif %}
+      Разработка курса и сайта
       <img class="logo-light" src="/static/brand/logo-on-light.webp" alt="AI&HI" width="360" height="120">
       <img class="logo-dark" src="/static/brand/logo-on-dark.webp" alt="AI&HI" width="360" height="120">
-    </a>
+      {% if login_page %}</div>{% else %}</a>{% endif %}
     {% endif %}
     <a class="footer-top-link" href="#top">Наверх ↑</a>
   </footer>

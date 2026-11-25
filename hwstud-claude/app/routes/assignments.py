@@ -245,37 +245,200 @@ def submission_file(request: Request, submission_id: int, actor: Actor = Depends
     )
 
 
+def _review_submission(conn, submission_id: int):
+    return conn.execute(
+        "SELECT s.*, a.title AS assignment_title FROM submissions s "
+        "JOIN assignments a ON a.id = s.assignment_id WHERE s.id = ?",
+        (submission_id,),
+    ).fetchone()
+
+
+def _review_request(conn, request_id: int):
+    return conn.execute(
+        "SELECT rr.*, s.student_id, s.attempt, a.title AS assignment_title, "
+        "st.nick, g.name AS group_name FROM review_requests rr "
+        "JOIN submissions s ON s.id = rr.submission_id "
+        "JOIN assignments a ON a.id = s.assignment_id "
+        "JOIN students st ON st.id = s.student_id "
+        "JOIN groups g ON g.id = st.group_id WHERE rr.id = ?",
+        (request_id,),
+    ).fetchone()
+
+
+def _review_text(value: str) -> str:
+    text = value.strip()
+    if not text:
+        raise ValueError("Введите текст сообщения")
+    if len(text) > 2000:
+        raise ValueError("Сообщение не должно превышать 2000 знаков")
+    return text
+
+
+def _new_review_response(
+    request: Request, submission, actor: Actor, *, question: str = "",
+    error: str | None = None, status_code: int = 200,
+):
+    return render(
+        request,
+        "review_new.html",
+        {
+            "title": "Запрос разбора", "submission": submission,
+            "question": question, "error": error,
+            "back_href": "/results", "back_label": "К результатам",
+        },
+        status_code=status_code,
+        actor=actor,
+    )
+
+
+def _review_thread_response(
+    request: Request, conn, review, actor: Actor, *, body: str = "",
+    error: str | None = None, status_code: int = 200,
+):
+    messages = conn.execute(
+        "SELECT * FROM review_messages WHERE request_id = ? ORDER BY id",
+        (review["id"],),
+    ).fetchall()
+    reply_action = (
+        f"/admin/review-requests/{review['id']}" if actor.is_admin
+        else f"/reviews/{review['id']}/messages"
+    )
+    return render(
+        request,
+        "review_thread.html",
+        {
+            "title": f"Разбор: {review['assignment_title']}", "review": review,
+            "messages": messages, "reply_action": reply_action,
+            "body": body, "error": error,
+            "back_href": "/admin/submissions" if actor.is_admin else "/results",
+            "back_label": "К проверке работ" if actor.is_admin else "К результатам",
+        },
+        status_code=status_code,
+        actor=actor,
+    )
+
+
+@router.get("/assignments/review/{submission_id}")
+def new_review(
+    request: Request, submission_id: int, actor: Actor = Depends(require_user)
+):
+    if actor.is_admin:
+        raise HTTPException(status_code=404)
+    conn = request.app.state.db_connect()
+    try:
+        submission = _review_submission(conn, submission_id)
+        if not submission or submission["student_id"] != actor.student_id:
+            raise HTTPException(status_code=404)
+        if submission["status"] not in {"accepted", "revise", "exhausted"}:
+            flash(request, "error", "Разбор можно запросить после решения преподавателя")
+            return RedirectResponse("/results", status_code=303)
+        existing = conn.execute(
+            "SELECT id FROM review_requests WHERE submission_id = ? ORDER BY id DESC LIMIT 1",
+            (submission_id,),
+        ).fetchone()
+        if existing:
+            return RedirectResponse(f"/reviews/{existing['id']}", status_code=303)
+        return _new_review_response(request, submission, actor)
+    finally:
+        conn.close()
+
+
 @router.post("/assignments/review/{submission_id}")
 def request_review(
     request: Request,
     submission_id: int,
+    question: str = Form(""),
     csrf: str = Form(""),
     actor: Actor = Depends(require_user),
 ):
     check_csrf(request, csrf)
+    if actor.is_admin:
+        raise HTTPException(status_code=404)
     conn = request.app.state.db_connect()
     try:
-        row = conn.execute(
-            "SELECT * FROM submissions WHERE id = ?", (submission_id,)
-        ).fetchone()
-        if not row or row["student_id"] != actor.student_id:
+        submission = _review_submission(conn, submission_id)
+        if not submission or submission["student_id"] != actor.student_id:
             raise HTTPException(status_code=404)
-        if row["status"] not in {"accepted", "revise", "exhausted"}:
+        if submission["status"] not in {"accepted", "revise", "exhausted"}:
             flash(request, "error", "Разбор можно запросить после решения преподавателя")
             return RedirectResponse("/results", status_code=303)
         existing = conn.execute(
-            "SELECT 1 FROM review_requests WHERE submission_id = ? AND status = 'open'",
+            "SELECT id FROM review_requests WHERE submission_id = ? ORDER BY id DESC LIMIT 1",
             (submission_id,),
         ).fetchone()
-        if not existing:
+        if existing:
+            return RedirectResponse(f"/reviews/{existing['id']}", status_code=303)
+        try:
+            question = _review_text(question)
+        except ValueError as exc:
+            return _new_review_response(
+                request, submission, actor, question=question,
+                error=str(exc), status_code=400,
+            )
+        cursor = conn.execute(
+            "INSERT INTO review_requests(submission_id, created_at, question) VALUES (?, ?, ?)",
+            (submission_id, utc_now_iso(), question),
+        )
+        request_id = int(cursor.lastrowid)
+    finally:
+        conn.close()
+    flash(request, "success", "Вопрос отправлен преподавателю")
+    return RedirectResponse(f"/reviews/{request_id}", status_code=303)
+
+
+@router.get("/reviews/{request_id}")
+def student_review_thread(
+    request: Request, request_id: int, actor: Actor = Depends(require_user)
+):
+    if actor.is_admin:
+        raise HTTPException(status_code=404)
+    conn = request.app.state.db_connect()
+    try:
+        review = _review_request(conn, request_id)
+        if not review or review["student_id"] != actor.student_id:
+            raise HTTPException(status_code=404)
+        return _review_thread_response(request, conn, review, actor)
+    finally:
+        conn.close()
+
+
+@router.post("/reviews/{request_id}/messages")
+def student_review_message(
+    request: Request,
+    request_id: int,
+    body: str = Form(""),
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_user),
+):
+    check_csrf(request, csrf)
+    if actor.is_admin:
+        raise HTTPException(status_code=404)
+    conn = request.app.state.db_connect()
+    try:
+        review = _review_request(conn, request_id)
+        if not review or review["student_id"] != actor.student_id:
+            raise HTTPException(status_code=404)
+        try:
+            body = _review_text(body)
+        except ValueError as exc:
+            return _review_thread_response(
+                request, conn, review, actor, body=body,
+                error=str(exc), status_code=400,
+            )
+        with transaction(conn, immediate=True):
             conn.execute(
-                "INSERT INTO review_requests(submission_id, created_at) VALUES (?, ?)",
-                (submission_id, utc_now_iso()),
+                "INSERT INTO review_messages(request_id, author, body, created_at) "
+                "VALUES (?, 'student', ?, ?)",
+                (request_id, body, utc_now_iso()),
+            )
+            conn.execute(
+                "UPDATE review_requests SET status = 'open' WHERE id = ?",
+                (request_id,),
             )
     finally:
         conn.close()
-    flash(request, "success", "Запрос на разбор отправлен")
-    return RedirectResponse("/results", status_code=303)
+    flash(request, "success", "Уточнение отправлено преподавателю")
+    return RedirectResponse(f"/reviews/{request_id}", status_code=303)
 
 
 @router.get("/results")
@@ -289,7 +452,7 @@ def results_page(request: Request, variant: str = "1", actor: Actor = Depends(re
         }
         requests = conn.execute(
             "SELECT rr.*, s.assignment_id FROM review_requests rr "
-            "JOIN submissions s ON s.id = rr.submission_id WHERE s.student_id = ?",
+            "JOIN submissions s ON s.id = rr.submission_id WHERE s.student_id = ? ORDER BY rr.id",
             (actor.student_id,),
         ).fetchall()
         assignment_ids = {str(assignment["id"]) for assignment in assignments}
@@ -452,7 +615,10 @@ def admin_submissions(request: Request, actor: Actor = Depends(require_admin)):
             "WHEN s.status = 'awaiting_approval' THEN 1 ELSE 2 END, s.created_at DESC"
         ).fetchall()
         review_requests = conn.execute(
-            "SELECT rr.*, st.nick, a.title FROM review_requests rr "
+            "SELECT rr.*, st.nick, a.title, s.id AS submission_id, "
+            "(SELECT rm.body FROM review_messages rm WHERE rm.request_id = rr.id "
+            "AND rm.author = 'student' ORDER BY rm.id DESC LIMIT 1) AS latest_student_message "
+            "FROM review_requests rr "
             "JOIN submissions s ON s.id = rr.submission_id JOIN students st ON st.id = s.student_id "
             "JOIN assignments a ON a.id = s.assignment_id WHERE rr.status = 'open' ORDER BY rr.created_at"
         ).fetchall()
@@ -521,6 +687,11 @@ def admin_submission(request: Request, submission_id: int, actor: Actor = Depend
             "AND json_extract(payload_json, '$.submission_id') = ? ORDER BY id DESC LIMIT 1",
             (submission_id,),
         ).fetchone()
+        review_request = conn.execute(
+            "SELECT id, status FROM review_requests WHERE submission_id = ? "
+            "ORDER BY id DESC LIMIT 1",
+            (submission_id,),
+        ).fetchone()
     finally:
         conn.close()
     if not submission:
@@ -530,7 +701,7 @@ def admin_submission(request: Request, submission_id: int, actor: Actor = Depend
         "admin_submission.html",
         {
             "title": f"Работа {submission_id}", "submission": submission,
-            "job": job, "similarity": similarity,
+            "job": job, "similarity": similarity, "review_request": review_request,
         },
         actor=actor,
     )
@@ -575,10 +746,25 @@ def recheck_submission(
     return RedirectResponse(f"/admin/submissions/{submission_id}", status_code=303)
 
 
+@router.get("/admin/review-requests/{request_id}")
+def admin_review_thread(
+    request: Request, request_id: int, actor: Actor = Depends(require_admin)
+):
+    conn = request.app.state.db_connect()
+    try:
+        review = _review_request(conn, request_id)
+        if not review:
+            raise HTTPException(status_code=404)
+        return _review_thread_response(request, conn, review, actor)
+    finally:
+        conn.close()
+
+
 @router.post("/admin/review-requests/{request_id}")
 def answer_review(
     request: Request,
     request_id: int,
+    body: str = Form(""),
     answer: str = Form(""),
     csrf: str = Form(""),
     actor: Actor = Depends(require_admin),
@@ -586,14 +772,30 @@ def answer_review(
     check_csrf(request, csrf)
     conn = request.app.state.db_connect()
     try:
-        conn.execute(
-            "UPDATE review_requests SET status = 'answered', answer = ? WHERE id = ?",
-            (answer.strip(), request_id),
-        )
+        review = _review_request(conn, request_id)
+        if not review:
+            raise HTTPException(status_code=404)
+        try:
+            body = _review_text(body or answer)
+        except ValueError as exc:
+            return _review_thread_response(
+                request, conn, review, actor, body=body or answer,
+                error=str(exc), status_code=400,
+            )
+        with transaction(conn, immediate=True):
+            conn.execute(
+                "INSERT INTO review_messages(request_id, author, body, created_at) "
+                "VALUES (?, 'teacher', ?, ?)",
+                (request_id, body, utc_now_iso()),
+            )
+            conn.execute(
+                "UPDATE review_requests SET status = 'answered', answer = ? WHERE id = ?",
+                (body, request_id),
+            )
     finally:
         conn.close()
-    flash(request, "success", "Разбор сохранён и доступен студенту")
-    return RedirectResponse("/admin/submissions", status_code=303)
+    flash(request, "success", "Ответ сохранён и доступен студенту")
+    return RedirectResponse(f"/admin/review-requests/{request_id}", status_code=303)
 
 
 @router.get("/admin/results")

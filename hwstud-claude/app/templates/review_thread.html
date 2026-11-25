@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{% if actor.is_admin %}{{ review.nick }} · {{ review.group_name }} · {% endif %}Попытка {{ review.attempt }}</p><h1>{{ review.assignment_title }}</h1></div><span class="status-chip">{{ 'Ждёт ответа' if review.status == 'open' else 'Есть ответ' }}</span></div>
+<div class="button-row"><a class="button secondary" href="/u/{{ review.submission_id }}" target="_blank" rel="noopener">Открыть работу<span class="sr-only"> (в новой вкладке)</span></a>{% if actor.is_admin %}<a class="button secondary" href="/admin/submissions/{{ review.submission_id }}">Страница проверки</a>{% endif %}</div>
+<section class="card conversation">
+  <h2>Диалог по заданию</h2>
+  <div class="conversation-lanes">
+    <div class="lane-heading"><strong>Студент</strong><strong>Преподаватель</strong></div>
+    <div class="message-row"><div><article class="message-card student-message"><p>{{ review.question }}</p><time>{{ review.created_at|moscow }}</time></article></div><div></div></div>
+    {% for message in messages %}
+    <div class="message-row">
+      <div>{% if message.author == 'student' %}<article class="message-card student-message"><p>{{ message.body }}</p><time>{{ message.created_at|moscow }}</time></article>{% endif %}</div>
+      <div>{% if message.author == 'teacher' %}<article class="message-card teacher-message"><p>{{ message.body }}</p><time>{{ message.created_at|moscow }}</time></article>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+<section class="card">
+  <h2>{{ 'Ответ преподавателя' if actor.is_admin else 'Уточнение по разбору' }}</h2>
+  <p class="hint">Сообщение останется в этой ветке. Новое уточнение студента снова покажет диалог в списке запросов преподавателя.</p>
+  {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ reply_action }}" class="form-stack message-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="review-message">{{ 'Текст ответа' if actor.is_admin else 'Текст уточнения' }}</label>
+    <textarea id="review-message" name="body" rows="6" minlength="1" maxlength="2000" required placeholder="{{ 'Напишите разбор для студента' if actor.is_admin else 'Напишите, что нужно уточнить' }}" data-message-body>{{ body or '' }}</textarea>
+    <span class="hint" data-message-counter>0 / 2000</span>
+    <button class="button primary" type="submit">{{ 'Отправить ответ' if actor.is_admin else 'Отправить уточнение' }}</button>
+  </form>
+</section>
+{% endblock %}

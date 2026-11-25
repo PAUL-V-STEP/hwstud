@@ -5,7 +5,7 @@ from app.db import connect, migrate, utc_now_iso
 
 
 def test_migration_creates_required_seed_and_pragmas(settings):
-    assert migrate(settings) == [1, 2, 3, 4, 5, 6, 7]
+    assert migrate(settings) == [1, 2, 3, 4, 5, 6, 7, 8]
     assert migrate(settings) == []
     conn = connect(settings)
     try:
@@ -26,6 +26,12 @@ def test_migration_creates_required_seed_and_pragmas(settings):
         assert "similarity_json" in {
             row[1] for row in conn.execute("PRAGMA table_info(submissions)")
         }
+        assert "question" in {
+            row[1] for row in conn.execute("PRAGMA table_info(review_requests)")
+        }
+        assert conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'review_messages'"
+        ).fetchone()
         assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         assert conn.execute("PRAGMA secure_delete").fetchone()[0] == 1
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
@@ -53,20 +59,34 @@ def test_fifth_assignment_migration_preserves_existing_submission(settings):
             )
         student, error = create_student(conn, "legacy_student", 1)
         assert not error
-        conn.execute(
+        submission_id = conn.execute(
             "INSERT INTO submissions(student_id, assignment_id, attempt, file, mime, size, "
             "created_at, status) VALUES (?, 1, 1, 'legacy.txt', 'text/plain', 4, ?, 'queued')",
             (student["id"], utc_now_iso()),
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO review_requests(submission_id, created_at, status, answer) "
+            "VALUES (?, ?, 'answered', 'Прежний разбор')",
+            (submission_id, utc_now_iso()),
         )
     finally:
         conn.close()
-    assert migrate(settings) == [4, 5, 6, 7]
+    assert migrate(settings) == [4, 5, 6, 7, 8]
     conn = connect(settings)
     try:
         assert conn.execute("SELECT COUNT(*) FROM assignments").fetchone()[0] == 5
         assert conn.execute(
             "SELECT file FROM submissions WHERE student_id = ?", (student["id"],)
         ).fetchone()[0] == "legacy.txt"
+        request = conn.execute(
+            "SELECT id, question FROM review_requests WHERE submission_id = ?",
+            (submission_id,),
+        ).fetchone()
+        assert request["question"]
+        assert conn.execute(
+            "SELECT body FROM review_messages WHERE request_id = ? AND author = 'teacher'",
+            (request["id"],),
+        ).fetchone()[0] == "Прежний разбор"
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         conn.close()

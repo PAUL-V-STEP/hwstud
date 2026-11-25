@@ -225,6 +225,141 @@ def test_busy_upload_does_not_create_attempt(client, settings):
         conn.close()
 
 
+def test_review_dialogue_requires_question_and_supports_followups(client, settings):
+    login_student(client, "review_student", 1)
+    upload_txt(client)
+    conn = connect(settings)
+    try:
+        submission_id = conn.execute("SELECT id FROM submissions").fetchone()[0]
+        conn.execute(
+            "UPDATE submissions SET status = 'needs_review' WHERE id = ?",
+            (submission_id,),
+        )
+        assert teacher_decision(conn, submission_id, "accept", 8, "Принято") == "accepted"
+    finally:
+        conn.close()
+
+    results = client.get("/results")
+    new_path = f"/assignments/review/{submission_id}"
+    assert f'href="{new_path}"' in results.text
+    new_page = client.get(new_path)
+    assert new_page.status_code == 200
+    assert 'name="question"' in new_page.text
+    assert "required" in new_page.text
+    assert 'maxlength="2000"' in new_page.text
+    response = client.post(
+        new_path, data={"csrf": csrf_from(new_page), "question": "   "},
+    )
+    assert response.status_code == 400
+    assert "Введите текст сообщения" in response.text
+    response = client.post(
+        new_path, data={"csrf": csrf_from(new_page), "question": "x" * 2001},
+    )
+    assert response.status_code == 400
+    assert "2000" in response.text
+    response = client.post(
+        new_path,
+        data={
+            "csrf": csrf_from(new_page),
+            "question": "Почему сравнение ответов признано недостаточным?",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    request_id = int(response.headers["location"].rsplit("/", 1)[1])
+    student_path = f"/reviews/{request_id}"
+    admin_path = f"/admin/review-requests/{request_id}"
+    assert response.headers["location"] == student_path
+    student_thread = client.get(student_path)
+    assert "Почему сравнение ответов признано недостаточным?" in student_thread.text
+    assert "Диалог по заданию" in student_thread.text
+    response = client.get(new_path, follow_redirects=False)
+    assert response.headers["location"] == student_path
+
+    login_student(client, "other_review_student", 1)
+    assert client.get(student_path).status_code == 404
+    other_results = client.get("/results")
+    response = client.post(
+        f"{student_path}/messages",
+        data={"csrf": csrf_from(other_results), "body": "Чужое сообщение"},
+    )
+    assert response.status_code == 404
+    assert client.get(new_path).status_code == 404
+
+    login_admin(client)
+    admin_queue = client.get("/admin/submissions")
+    assert "Почему сравнение ответов признано недостаточным?" in admin_queue.text
+    assert f'href="{admin_path}"' in admin_queue.text
+    admin_work = client.get(f"/admin/submissions/{submission_id}")
+    assert f'href="{admin_path}"' in admin_work.text
+    admin_thread = client.get(admin_path)
+    assert admin_thread.status_code == 200
+    response = client.post(
+        admin_path, data={"csrf": csrf_from(admin_thread), "body": ""},
+    )
+    assert response.status_code == 400
+    response = client.post(
+        admin_path,
+        data={
+            "csrf": csrf_from(admin_thread),
+            "body": "Нужно сопоставить общие понятия и отличия по каждому промпту.",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == admin_path
+    assert "Нужно сопоставить общие понятия" in client.get(admin_path).text
+
+    login_student(client, "review_student", 1)
+    results = client.get("/results")
+    assert f'href="{student_path}"' in results.text
+    assert "есть ответ" in results.text
+    student_thread = client.get(student_path)
+    assert "Нужно сопоставить общие понятия" in student_thread.text
+    response = client.post(
+        f"{student_path}/messages",
+        data={
+            "csrf": csrf_from(student_thread),
+            "body": "Какие именно общие понятия нужно выделить?",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert "Какие именно общие понятия" in client.get(student_path).text
+
+    login_admin(client)
+    admin_queue = client.get("/admin/submissions")
+    assert "Какие именно общие понятия" in admin_queue.text
+    admin_thread = client.get(admin_path)
+    response = client.post(
+        admin_path,
+        data={
+            "csrf": csrf_from(admin_thread),
+            "body": "Выделите определения процесса, входы, выходы и исполнителей.",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    conn = connect(settings)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM review_requests").fetchone()[0] == 1
+        review = conn.execute(
+            "SELECT status, question FROM review_requests WHERE id = ?", (request_id,)
+        ).fetchone()
+        assert review["status"] == "answered"
+        assert review["question"] == "Почему сравнение ответов признано недостаточным?"
+        messages = conn.execute(
+            "SELECT author, body FROM review_messages WHERE request_id = ? ORDER BY id",
+            (request_id,),
+        ).fetchall()
+        assert [message["author"] for message in messages] == [
+            "teacher", "student", "teacher"
+        ]
+        assert messages[-1]["body"] == "Выделите определения процесса, входы, выходы и исполнителей."
+    finally:
+        conn.close()
+
+
 def test_parse_deadline_is_cooperative(tmp_path, monkeypatch):
     path = tmp_path / "deadline.pdf"
     document = fitz.open()

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card password-card">
+  <p class="eyebrow">Конкретная работа · попытка {{ submission.attempt }}</p>
+  <h1>Запросить разбор</h1>
+  <p class="lead">{{ submission.assignment_title }}</p>
+  <p>Опишите, что именно непонятно в результате проверки или какое замечание нужно разобрать.</p>
+  {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/assignments/review/{{ submission.id }}" class="form-stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="review-question">Вопрос преподавателю</label>
+    <textarea id="review-question" name="question" rows="7" minlength="1" maxlength="2000" required autofocus placeholder="Например: почему сравнение ответов признано недостаточным?" data-message-body>{{ question or '' }}</textarea>
+    <span class="hint" data-message-counter>0 / 2000</span>
+    <button class="button primary" type="submit">Отправить вопрос</button>
+  </form>
+</section>
+{% endblock %}

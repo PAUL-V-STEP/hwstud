@@ -92,7 +92,8 @@ hwstud/
 | `source_refs` | source_id, lecture_id, slide_n, local_number |
 | `assignments` | стабильный id (1–10), position (текущий номер и порядок), title, condition, reference, criteria, typical_errors, threshold (0,7), due_at, max_attempts (4) |
 | `submissions` | id, student_id, assignment_id, attempt, file, mime, size, pages, chars, created_at, late, status, verdict, score (0–10), comment, errors_json, classification, confidence, similarity_json, decided_at |
-| `review_requests` | id, submission_id, created_at, status, answer |
+| `review_requests` | id, submission_id, question, created_at, status (open/answered), answer (последний ответ, для совместимости) |
+| `review_messages` | id, request_id, author (student/teacher), body до 2000 знаков, created_at; каскадно удаляется вместе с запросом |
 | `jobs` | id, kind, priority, payload_json, status, tries, run_after, started_at, request_sent_at, error, model, tokens_in, tokens_out, cost_est |
 | `announcements` | id, title, body, link, kind (normal/important/deadline), pinned, publish_at, unpublish_at |
 | `announcement_groups` | announcement_id, group_id — пусто означает «все группы» |
@@ -162,6 +163,7 @@ lecture_visible(student, lecture, now) =
 - Задания, объявления и переписка от `content_visible` не зависят.
 - Страницы `/help` и `/help/upload` доступны студенту и преподавателю после входа и также не зависят от `content_visible`. Студент получает только студенческую версию. Преподаватель получает обе версии с переключателем «Студенту / Преподавателю»; выбор преподавательской версии разрешён только его сессии. Ролевой шаблон выбирается на сервере: студенческий HTML не содержит преподавательских текстов, а прямой запрос студента к преподавательской версии возвращает 404. Доступ к ролевым версиям проверяет `access.py`; содержание страниц — `docs/06-HELP.md`.
 - **Файл работы** `/u/<submission_id>`: отдаётся, только если `submission.student_id` = студент сессии или это сессия преподавателя. Иначе 404, без подсказки, что файл существует.
+- **Диалог разбора** `/reviews/<request_id>` доступен только студенту — владельцу связанной работы; `/admin/review-requests/<request_id>` — только преподавателю. Иначе 404. Создание требует непустого `question`; сообщения обеих ролей непустые и до 2000 знаков. Ответ преподавателя добавляет строку `review_messages` и ставит запросу `answered`; уточнение студента добавляет строку и возвращает `open`.
 - **Ссылка на лекцию в объявлении:** если `lecture_visible = False`, шаблон выводит название серым текстом без ссылки: «пока недоступна» или при `exam_active` — «закрыто на время экзамена».
 - **Страница `/about`** без входа показывает только названия лекций со `status = open` (для любой группы).
 - **Анонс:** включить `announce` можно только при заполненном `planned_date`; проверка в форме и в коде сохранения.

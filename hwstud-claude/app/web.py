@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from .auth import Actor, current_actor, ensure_csrf, pop_flashes
 from .config import get_timezone
 from .db import parse_utc
-from .services import communication, glossary, literature
+from .services import communication, glossary, literature, registration
 
 
 def create_templates(base_dir: Path) -> Jinja2Templates:
@@ -132,6 +132,17 @@ def render(
                 "SELECT COUNT(*) FROM messages WHERE author = 'student' "
                 "AND teacher_read_at IS NULL"
             ).fetchone()[0]
+            registration_state = registration.status(conn)
+            seconds = max(
+                (
+                    item["seconds_left"]
+                    for item in registration_state["windows"]
+                ),
+                default=0,
+            )
+            values["notifications"]["registration_clock"] = (
+                f"{seconds // 60:02d}:{seconds % 60:02d}" if seconds else ""
+            )
         finally:
             conn.close()
     return request.app.state.templates.TemplateResponse(

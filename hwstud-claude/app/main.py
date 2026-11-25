@@ -12,8 +12,10 @@ from starlette.responses import PlainTextResponse, RedirectResponse
 from .auth import RateLimiter
 from .config import Settings, load_settings
 from .db import connect, migrate
-from .routes import admin, admin_lectures, assignments as assignment_routes, communication as communication_routes, course_admin, data as data_routes, public, references, student
+from .routes import admin, admin_lectures, assignments as assignment_routes, communication as communication_routes, course_admin, data as data_routes, public, references, registration as registration_routes, student
 from .services.balance import BalanceService
+from .services.access_cards import AccessCardStore
+from .services.personal_keys import load_key_words
 from .web import create_templates
 from .worker import Worker
 
@@ -23,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        load_key_words()
         settings.ensure_directories()
         migrate(settings)
         if settings.enable_worker:
@@ -42,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.rate_limiter = RateLimiter()
+    app.state.access_cards = AccessCardStore()
     app.state.db_connect = partial(connect, settings)
     app.state.templates = create_templates(settings.base_dir)
     app.state.balance = BalanceService(settings)
@@ -60,7 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def security_headers(request: Request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "same-origin"
+        response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data:; style-src 'self'; "
@@ -95,6 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_lectures.router)
     app.include_router(course_admin.router)
     app.include_router(references.router)
+    app.include_router(registration_routes.router)
     app.include_router(assignment_routes.router)
     app.include_router(communication_routes.router)
     app.include_router(data_routes.router)

@@ -5,7 +5,7 @@ from app.db import connect, migrate, utc_now_iso
 
 
 def test_migration_creates_required_seed_and_pragmas(settings):
-    assert migrate(settings) == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert migrate(settings) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert migrate(settings) == []
     conn = connect(settings)
     try:
@@ -32,6 +32,16 @@ def test_migration_creates_required_seed_and_pragmas(settings):
         assert conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'review_messages'"
         ).fetchone()
+        assert {"enroll_until", "enroll_window_started"} <= {
+            row[1] for row in conn.execute("PRAGMA table_info(groups)")
+        }
+        assert {
+            "key_hash", "key_issued_at", "key_issued_by", "key_failed_count",
+            "key_locked_until", "last_login_at",
+        } <= {row[1] for row in conn.execute("PRAGMA table_info(students)")}
+        assert conn.execute(
+            "SELECT value FROM settings WHERE key = 'registration_window_minutes'"
+        ).fetchone()[0] == "10"
         assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         assert conn.execute("PRAGMA secure_delete").fetchone()[0] == 1
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
@@ -71,7 +81,7 @@ def test_fifth_assignment_migration_preserves_existing_submission(settings):
         )
     finally:
         conn.close()
-    assert migrate(settings) == [4, 5, 6, 7, 8]
+    assert migrate(settings) == [4, 5, 6, 7, 8, 9]
     conn = connect(settings)
     try:
         assert conn.execute("SELECT COUNT(*) FROM assignments").fetchone()[0] == 5
@@ -111,8 +121,8 @@ def test_group_capacity_and_enrollment(settings):
         assert row is None
         assert error == "В группе уже 20 участников."
         conn.execute("UPDATE groups SET enroll_open = 0 WHERE id = 2")
-        row, error = create_student(conn, "other_group", 2)
+        row, error = create_student(conn, "other_group", 2, require_window=True)
         assert row is None
-        assert error == "Набор в эту группу закрыт."
+        assert error.startswith("Регистрация сейчас закрыта")
     finally:
         conn.close()

@@ -14,6 +14,7 @@ def test_systemd_unit_has_required_limits_and_single_worker():
     assert "MemoryMax=1200M" in unit
     assert "Restart=always" in unit
     assert "ProtectSystem=full" in unit
+    assert "--forwarded-allow-ips" not in unit
 
 
 def test_caddy_preserves_limits_and_does_not_publish_data():
@@ -24,6 +25,7 @@ def test_caddy_preserves_limits_and_does_not_publish_data():
     assert "encode zstd gzip" in caddy
     assert "Strict-Transport-Security" in caddy
     assert "/data" not in caddy
+    assert "trusted_proxies" not in caddy
     assert caddy.count("{") == caddy.count("}")
 
 

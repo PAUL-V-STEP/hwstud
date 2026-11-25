@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from starlette.responses import FileResponse, RedirectResponse
 
 from ..access import (
@@ -13,13 +13,14 @@ from ..access import (
     help_view,
     lecture_visible,
 )
-from ..auth import Actor, current_actor
-from ..db import utc_now
+from ..auth import Actor, check_csrf, current_actor, flash, login_student
+from ..db import utc_now, utc_now_iso
 from ..services import glossary
 from ..services import assignments as assignment_service
 from ..services import communication as communication_service
 from ..services import cabinet as cabinet_service
 from ..services import backup
+from ..services import personal_keys
 from ..services.submissions import STUDENT_STATUS
 from ..web import render
 
@@ -305,6 +306,48 @@ def _lecture_file(
         conn.close()
 
 
+@router.post("/cabinet/key")
+def change_personal_key(
+    request: Request,
+    current_key: str = Form(""),
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_user),
+):
+    check_csrf(request, csrf)
+    if actor.is_admin:
+        raise HTTPException(status_code=404)
+    conn = request.app.state.db_connect()
+    try:
+        student = conn.execute(
+            "SELECT * FROM students WHERE id = ?", (actor.student_id,)
+        ).fetchone()
+        if not student:
+            raise HTTPException(status_code=404)
+        has_key = bool(student["key_hash"])
+        if has_key and not personal_keys.verify_key(current_key, student["key_hash"]):
+            flash(request, "error", "Текущий ключ неверен")
+            return RedirectResponse("/cabinet", status_code=303)
+        issued_by = "student" if has_key else "transition"
+        key = personal_keys.issue_key(conn, actor.student_id, issued_by)
+        action = "key_changed" if has_key else "key_issued_transition"
+        conn.execute(
+            "INSERT INTO audit_log(at, actor, action, student_id, details_json) "
+            "VALUES (?, 'student', ?, ?, '{}')",
+            (utc_now_iso(), action, actor.student_id),
+        )
+        student = conn.execute(
+            "SELECT * FROM students WHERE id = ?", (actor.student_id,)
+        ).fetchone()
+        login_student(request, student)
+        card_id = request.app.state.access_cards.create(
+            nick=student["nick"], key=key, audience="student",
+            student_id=student["id"], next_path="/cabinet",
+        )
+        return RedirectResponse(f"/card/{card_id}", status_code=303)
+    finally:
+        conn.close()
+
+
 @router.get("/cabinet")
 def cabinet(request: Request, actor: Actor = Depends(require_user)):
     if actor.is_admin:
@@ -312,10 +355,17 @@ def cabinet(request: Request, actor: Actor = Depends(require_user)):
     conn = request.app.state.db_connect()
     try:
         data = cabinet_service.swot(conn, actor, request.app.state.settings)
+        student = conn.execute(
+            "SELECT key_hash FROM students WHERE id = ?", (actor.student_id,)
+        ).fetchone()
+        has_key = bool(student and student["key_hash"])
     finally:
         conn.close()
     return render(
-        request, "cabinet.html", {"title": "Личный кабинет", "swot": data}, actor=actor
+        request,
+        "cabinet.html",
+        {"title": "Личный кабинет", "swot": data, "has_key": has_key},
+        actor=actor,
     )
 
 

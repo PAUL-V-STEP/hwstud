@@ -2,6 +2,8 @@
 **/.env
 **/.venv/
 **/data/
+!hwstud-claude/app/data/
+!hwstud-claude/app/data/key_words_ru.txt
 **/__pycache__/
 **/.pytest_cache/
 *.py[cod]

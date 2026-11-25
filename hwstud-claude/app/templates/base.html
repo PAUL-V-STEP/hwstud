@@ -6,7 +6,8 @@
   <meta name="color-scheme" content="light dark">
   <title>{{ title }} — hwstud</title>
   <link rel="stylesheet" href="/static/css/app.css?v=20261125-1">
-  <script src="/static/js/app.js?v=20261124-1" defer></script>
+  <script src="/static/js/app.js?v=20261125-2" defer></script>
+  <script src="/static/js/registration.js?v=20261125-1" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}" id="top">
   <a class="skip-link" href="#content">К содержанию</a>
@@ -32,6 +33,7 @@
     <nav class="admin-nav" aria-label="Администрирование">
       <a href="/admin" class="{{ 'active' if request.url.path == '/admin' }}">Обзор</a>
       <a href="/admin/announcements" class="{{ 'active' if request.url.path.startswith('/admin/announcements') }}">Объявления</a>
+      <a href="/admin/registration" class="{{ 'active' if request.url.path.startswith('/admin/registration') }}">Регистрация<span data-registration-countdown{% if not notifications.registration_clock %} hidden{% endif %}>{% if notifications.registration_clock %} · {{ notifications.registration_clock }}{% endif %}</span></a>
       <a href="/admin/lectures">Лекции</a><a href="/admin/assignments">Задания</a><a href="/admin/submissions">Проверка</a><a href="/admin/messages">Сообщения{% if notifications.teacher_unread %}<span class="counter">{{ notifications.teacher_unread }}</span>{% endif %}</a><a href="/admin/results">Результаты</a><a href="/admin/glossary">Глоссарий</a><a href="/admin/literature">Литература</a>
       <a href="/admin/settings" class="{{ 'active' if request.url.path == '/admin/settings' }}">Настройки</a>
       <a href="/admin/settings/proxyapi" class="{{ 'active' if request.url.path.endswith('/proxyapi') }}">ProxyAPI</a>
@@ -57,7 +59,7 @@
   {% if actor %}
   <nav id="mobile-menu" class="mobile-menu" aria-label="Мобильное меню" hidden>
     {% if actor.is_admin %}
-      <a href="/admin">Обзор</a><a href="/admin/announcements">Объявления</a><a href="/admin/lectures">Лекции</a><a href="/admin/assignments">Задания</a><a href="/admin/submissions">Проверка</a><a href="/admin/messages">Сообщения{% if notifications.teacher_unread %}<span class="counter">{{ notifications.teacher_unread }}</span>{% endif %}</a><a href="/admin/results">Результаты</a><a href="/admin/glossary">Глоссарий</a><a href="/admin/literature">Литература</a><a href="/admin/settings">Настройки</a><a href="/admin/settings/proxyapi">ProxyAPI</a><a href="/admin/groups">Группы</a><a href="/admin/exam">Экзамен</a><a href="/admin/about">О курсе</a><a href="/admin/data">Данные</a><a href="/help">Помощь</a>
+      <a href="/admin">Обзор</a><a href="/admin/announcements">Объявления</a><a href="/admin/registration">Регистрация<span data-registration-countdown{% if not notifications.registration_clock %} hidden{% endif %}>{% if notifications.registration_clock %} · {{ notifications.registration_clock }}{% endif %}</span></a><a href="/admin/lectures">Лекции</a><a href="/admin/assignments">Задания</a><a href="/admin/submissions">Проверка</a><a href="/admin/messages">Сообщения{% if notifications.teacher_unread %}<span class="counter">{{ notifications.teacher_unread }}</span>{% endif %}</a><a href="/admin/results">Результаты</a><a href="/admin/glossary">Глоссарий</a><a href="/admin/literature">Литература</a><a href="/admin/settings">Настройки</a><a href="/admin/settings/proxyapi">ProxyAPI</a><a href="/admin/groups">Группы</a><a href="/admin/exam">Экзамен</a><a href="/admin/about">О курсе</a><a href="/admin/data">Данные</a><a href="/help">Помощь</a>
     {% else %}
       <a href="/announcements">Объявления</a><a href="/lectures">Лекции</a><a href="/glossary">Глоссарий</a><a href="/literature">Литература</a><a href="/assignments">Задания</a><a href="/results">Мои результаты</a><a href="/messages">Связь с преподавателем</a><a href="/help">Помощь</a><a href="/help/upload">Загрузка файлов</a>
     {% endif %}

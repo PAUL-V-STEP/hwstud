@@ -4,7 +4,7 @@ import re
 
 from app.db import connect
 
-from .conftest import csrf_from, login_admin, login_student
+from .conftest import csrf_from, login_admin, login_student, open_registration
 
 
 def test_student_first_and_repeat_login(client, settings):
@@ -12,7 +12,7 @@ def test_student_first_and_repeat_login(client, settings):
     assert response.status_code == 200
     assert 'name="nick"' in response.text
     response = login_student(client, "Ivan_2")
-    assert response.headers["location"] == "/"
+    assert response.headers["location"].startswith("/card/")
     response = client.get("/")
     assert "Ivan_2" in response.text
     assert "Группа 1" in response.text
@@ -52,6 +52,7 @@ def test_invalid_nick_and_csrf(client):
 
 
 def test_group_selection_allows_returning_to_nick_edit(client):
+    open_registration(client)
     response = client.get("/login")
     response = client.post(
         "/login",
@@ -203,7 +204,8 @@ def test_student_navigation_has_responsive_menu(client):
 
 def test_form_scroll_preservation_script_is_versioned_and_scoped(client):
     page = client.get("/about")
-    assert 'src="/static/js/app.js?v=20261124-1"' in page.text
+    assert 'src="/static/js/app.js?v=20261125-2"' in page.text
+    assert 'src="/static/js/registration.js?v=20261125-1"' in page.text
     script = client.get("/static/js/app.js").text
     assert "sessionStorage.setItem(formScrollKey" in script
     assert "parsed.path === window.location.pathname" in script

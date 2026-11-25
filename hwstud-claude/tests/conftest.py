@@ -13,6 +13,8 @@ os.environ["ENABLE_WORKER"] = "false"
 from app.auth import hash_password
 from app.config import PROJECT_ROOT, load_settings
 from app.main import create_app
+from app.services import personal_keys
+from app.services.registration import open_window
 
 CSRF_RE = re.compile(r'name="csrf" value="([^"]+)"')
 
@@ -54,7 +56,31 @@ def client(app):
         yield test_client
 
 
+def open_registration(client: TestClient, group_id: int = 1) -> None:
+    conn = client.app.state.db_connect()
+    try:
+        open_window(conn, [group_id])
+    finally:
+        conn.close()
+
+
 def login_student(client: TestClient, nick: str = "student_1", group_id: int = 1):
+    keys = getattr(client, "_test_student_keys", None)
+    if keys is None:
+        keys = {}
+        client._test_student_keys = keys
+    conn = client.app.state.db_connect()
+    try:
+        existing = conn.execute(
+            "SELECT * FROM students WHERE nick_norm = ?", (nick.strip().lower(),)
+        ).fetchone()
+        if existing and not existing["key_hash"]:
+            keys[nick.strip().lower()] = personal_keys.issue_key(
+                conn, existing["id"], "transition"
+            )
+    finally:
+        conn.close()
+    open_registration(client, group_id)
     response = client.get("/login")
     response = client.post(
         "/login",
@@ -62,15 +88,21 @@ def login_student(client: TestClient, nick: str = "student_1", group_id: int = 1
         follow_redirects=False,
     )
     if response.status_code == 200:
+        data = {"nick": nick, "csrf": csrf_from(response)}
+        if 'name="personal_key"' in response.text:
+            key = keys.get(nick.strip().lower())
+            assert key, "Тестовый ключ не выдан"
+            data["personal_key"] = key
+        else:
+            data["group_id"] = group_id
         response = client.post(
-            "/login",
-            data={
-                "nick": nick,
-                "group_id": group_id,
-                "csrf": csrf_from(response),
-            },
-            follow_redirects=False,
+            "/login", data=data, follow_redirects=False,
         )
+    if response.status_code == 303 and response.headers["location"].startswith("/card/"):
+        card = client.get(response.headers["location"])
+        match = re.search(r"Ключ: ([^<\n]+)", card.text)
+        assert match, "Ключ не найден на карточке"
+        keys[nick.strip().lower()] = match.group(1).strip()
     assert response.status_code == 303, response.text
     return response
 

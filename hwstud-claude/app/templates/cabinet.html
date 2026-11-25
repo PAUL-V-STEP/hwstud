@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Личный маршрут</p><h1>Мой SWOT</h1></div><span class="mono">{{ actor.nick }}</span></div>
+<section class="card{% if not has_key %} warning-panel{% endif %}">
+  <h2>Личный ключ</h2>
+  {% if has_key %}<p>Для получения нового ключа введите текущий. Старый ключ перестанет работать, другие устройства выйдут из аккаунта.</p>{% else %}<p><strong>Получите личный ключ — без него вы не сможете войти с другого устройства.</strong></p><p>Для этой старой учётной записи текущий ключ не требуется.</p>{% endif %}
+  <form method="post" action="/cabinet/key" class="form-stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% if has_key %}<label for="current-key">Текущий ключ</label><input id="current-key" name="current_key" type="password" required autocomplete="current-password">{% endif %}
+    <button class="button primary" type="submit">Получить новый ключ</button>
+  </form>
+</section>
 <div class="swot-grid">{% for key, title, subtitle in [('S', 'Сильные стороны', 'Принятые работы и высокие баллы'), ('W', 'Слабые стороны', 'Доработки и низкие баллы'), ('O', 'Возможности', 'Открытые лекции и новые задания'), ('T', 'Угрозы', 'Сроки, попытки и экзамен')] %}<section class="card swot-{{ key|lower }}"><span class="swot-letter">{{ key }}</span><h2>{{ title }}</h2><p class="hint">{{ subtitle }}</p>{% if swot[key] %}<ul>{% for item in swot[key] %}<li><a href="{{ item.href }}">{{ item.text }}</a></li>{% endfor %}</ul>{% else %}<p class="muted">Пока нет данных для этого квадранта.</p>{% endif %}</section>{% endfor %}</div>
 {% endblock %}

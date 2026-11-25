@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Однократная выдача</p><h1>Карточки доступа</h1></div><span class="stage-badge">Создано: {{ cards|length }}</span></div>
+{% if errors %}<section class="card error-panel"><h2>Не созданы</h2><ul>{% for item in errors %}<li><strong>{{ item.nick }}</strong>: {{ item.error }}</li>{% endfor %}</ul></section>{% endif %}
+{% if cards %}
+<section class="card">
+  <h2>Скопировать все</h2>
+  <p class="hint">Сохраните текст сразу. Открытые ключи не записываются на сервере.</p>
+  <label for="bulk-access-cards">Все карточки</label>
+  <textarea id="bulk-access-cards" rows="12" readonly>{{ all_text }}</textarea>
+  <div class="button-row">
+    <button class="button secondary" type="button" data-copy="#bulk-access-cards">Скопировать все</button>
+    <form method="post" action="/admin/students/bulk/download"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="content" value="{{ all_text }}"><button class="button secondary" type="submit">Скачать TXT</button></form>
+  </div>
+</section>
+<div class="settings-grid">{% for card in cards %}<section class="card"><h2>{{ card.nick }}</h2><textarea rows="9" readonly>{{ card.text }}</textarea></section>{% endfor %}</div>
+{% else %}<section class="card empty-page"><p>Новых карточек нет.</p></section>{% endif %}
+{% endblock %}

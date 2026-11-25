@@ -150,4 +150,16 @@
     window.addEventListener('resize', scheduleBackToTopUpdate);
     updateBackToTop();
   }
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.dataset.confirm) return;
+    if (form.dataset.confirmed === '1') return;
+    event.preventDefault();
+    if (!window.confirm(form.dataset.confirm)) return;
+    form.dataset.confirmed = '1';
+    const confirmation = form.querySelector('input[name="confirmed"]');
+    if (confirmation) confirmation.value = '1';
+    form.requestSubmit();
+  });
 })();

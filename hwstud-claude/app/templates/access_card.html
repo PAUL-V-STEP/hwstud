@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card password-card">
+  <p class="eyebrow">Карточка доступа</p>
+  <h1>Сохраните личный ключ</h1>
+  <div class="form-error" role="alert">Ключ больше не будет показан после истечения 10 минут или нажатия «Я сохранил ключ».</div>
+  <label for="access-card-text">Текст для сохранения или пересылки</label>
+  <textarea id="access-card-text" rows="9" readonly>{{ card_text }}</textarea>
+  <div class="button-row">
+    <button class="button secondary" type="button" data-copy="#access-card-text">Скопировать</button>
+    <form method="post" action="/card/{{ card.id }}/saved">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="button primary" type="submit">Я сохранил ключ</button>
+    </form>
+  </div>
+  <p class="hint">Если ключ потерян, преподаватель выдаст новый. Открытый ключ не сохраняется на сервере.</p>
+</section>
+{% endblock %}

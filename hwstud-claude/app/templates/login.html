@@ -8,8 +8,12 @@
     {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/login" class="form-stack" autocomplete="off">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      {% if show_groups %}<input type="hidden" name="nick" value="{{ nick }}">{% endif %}
-      {% if not show_groups %}
+      {% if show_groups or show_key %}<input type="hidden" name="nick" value="{{ nick }}">{% endif %}
+      {% if show_key %}
+      <p class="new-nick">Ник <strong>{{ nick }}</strong></p>
+      <label for="personal-key">Личный ключ</label>
+      <input id="personal-key" name="personal_key" type="password" required autocomplete="current-password" autofocus>
+      {% elif not show_groups %}
       <label for="nick">Ник</label>
       <input id="nick" name="nick" value="{{ nick }}" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]+" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" autofocus>
       {% else %}
@@ -18,7 +22,7 @@
         {% for group in groups %}<label class="group-option"><input type="radio" name="group_id" value="{{ group.id }}" required><span>{{ group.name }}</span></label>{% endfor %}
       </fieldset>
       {% endif %}
-      <div class="button-row"><button class="button primary" type="submit">{{ 'Войти и создать ник' if show_groups else 'Продолжить' }}</button>{% if show_groups %}<a class="button secondary" href="/login">Изменить ник</a>{% endif %}</div>
+      <div class="button-row"><button class="button primary" type="submit">{{ 'Войти и создать ник' if show_groups else ('Войти' if show_key else 'Продолжить') }}</button>{% if show_groups or show_key %}<a class="button secondary" href="/login">Изменить ник</a>{% endif %}</div>
     </form>
     <a class="admin-entry" href="/admin/login">Вход преподавателя</a>
   </div>

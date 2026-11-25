@@ -4,11 +4,13 @@ import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
 
-from ..auth import Actor, check_csrf, flash
+from ..auth import Actor, check_csrf, create_student, flash
 from ..db import transaction, utc_now_iso
+from ..services import personal_keys
 from ..services import students as student_service
+from ..services.access_cards import access_card_text
 from ..web import render
 from .admin import require_admin
 
@@ -141,7 +143,10 @@ def distribution_setting(
 def groups_page(request: Request, actor: Actor = Depends(require_admin)):
     conn = request.app.state.db_connect()
     try:
-        groups = conn.execute("SELECT * FROM groups ORDER BY id").fetchall()
+        groups = conn.execute(
+            "SELECT g.*, (SELECT COUNT(*) FROM students s WHERE s.group_id = g.id) "
+            "AS student_count FROM groups g ORDER BY g.id"
+        ).fetchall()
         students = conn.execute(
             "SELECT s.*, g.name AS group_name FROM students s JOIN groups g ON g.id = s.group_id "
             "ORDER BY g.id, s.nick"
@@ -156,12 +161,195 @@ def groups_page(request: Request, actor: Actor = Depends(require_admin)):
     )
 
 
+def _admin_access_card(request: Request, student, key: str) -> str:
+    return request.app.state.access_cards.create(
+        nick=student["nick"], key=key, audience="admin",
+        next_path="/admin/groups",
+    )
+
+
+@router.post("/students/create")
+def admin_create_student(
+    request: Request,
+    nick: str = Form(""),
+    group_id: int = Form(0),
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_admin),
+):
+    check_csrf(request, csrf)
+    conn = request.app.state.db_connect()
+    try:
+        student, error = create_student(conn, nick, group_id)
+        if error:
+            flash(request, "error", error)
+            return RedirectResponse("/admin/groups", status_code=303)
+        key = personal_keys.issue_key(conn, student["id"], "admin")
+        conn.execute(
+            "INSERT INTO audit_log(at, actor, action, student_id, details_json) "
+            "VALUES (?, 'admin', 'student_created_by_admin', ?, ?)",
+            (utc_now_iso(), student["id"], f'{{"group_id": {group_id}}}'),
+        )
+        card_id = _admin_access_card(request, student, key)
+    finally:
+        conn.close()
+    return RedirectResponse(f"/card/{card_id}", status_code=303)
+
+
+@router.post("/students/{student_id}/reset-key")
+def admin_reset_key(
+    request: Request,
+    student_id: int,
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_admin),
+):
+    check_csrf(request, csrf)
+    conn = request.app.state.db_connect()
+    try:
+        student = conn.execute(
+            "SELECT * FROM students WHERE id = ?", (student_id,)
+        ).fetchone()
+        if not student:
+            raise HTTPException(status_code=404)
+        key = personal_keys.issue_key(conn, student_id, "admin")
+        conn.execute(
+            "INSERT INTO audit_log(at, actor, action, student_id, details_json) "
+            "VALUES (?, 'admin', 'key_reset', ?, '{}')",
+            (utc_now_iso(), student_id),
+        )
+        card_id = _admin_access_card(request, student, key)
+    finally:
+        conn.close()
+    return RedirectResponse(f"/card/{card_id}", status_code=303)
+
+
+@router.post("/students/issue-keys")
+def admin_issue_missing_keys(
+    request: Request,
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_admin),
+):
+    check_csrf(request, csrf)
+    cards = []
+    conn = request.app.state.db_connect()
+    try:
+        students = conn.execute(
+            "SELECT * FROM students WHERE key_hash IS NULL ORDER BY id"
+        ).fetchall()
+        for student in students:
+            key = personal_keys.issue_key(conn, student["id"], "transition")
+            conn.execute(
+                "INSERT INTO audit_log(at, actor, action, student_id, details_json) "
+                "VALUES (?, 'admin', 'key_issued_transition', ?, '{}')",
+                (utc_now_iso(), student["id"]),
+            )
+            cards.append({
+                "nick": student["nick"],
+                "text": access_card_text(
+                    request.app.state.settings.app_base_url, student["nick"], key
+                ),
+            })
+        conn.execute(
+            "INSERT INTO audit_log(at, actor, action, details_json) "
+            "VALUES (?, 'admin', 'keys_bulk_issued', ?)",
+            (utc_now_iso(), f'{{"count": {len(cards)}}}'),
+        )
+    finally:
+        conn.close()
+    response = render(
+        request,
+        "access_cards_bulk.html",
+        {
+            "title": "Ключи для существующих ников", "cards": cards,
+            "errors": [], "all_text": "\n\n".join(
+                card["text"] for card in cards
+            ),
+            "back_href": "/admin/groups", "back_label": "К группам",
+        },
+        actor=actor,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@router.post("/students/bulk")
+def admin_bulk_create(
+    request: Request,
+    group_id: int = Form(0),
+    nicks: str = Form(""),
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_admin),
+):
+    check_csrf(request, csrf)
+    requested = [line.strip() for line in nicks.splitlines() if line.strip()]
+    if not requested:
+        flash(request, "error", "Введите хотя бы один ник")
+        return RedirectResponse("/admin/groups", status_code=303)
+    cards = []
+    errors = []
+    conn = request.app.state.db_connect()
+    try:
+        for nick in requested:
+            student, error = create_student(conn, nick, group_id)
+            if error:
+                errors.append({"nick": nick, "error": error})
+                continue
+            key = personal_keys.issue_key(conn, student["id"], "admin")
+            conn.execute(
+                "INSERT INTO audit_log(at, actor, action, student_id, details_json) "
+                "VALUES (?, 'admin', 'student_created_by_admin', ?, ?)",
+                (utc_now_iso(), student["id"], f'{{"group_id": {group_id}}}'),
+            )
+            cards.append({
+                "nick": student["nick"],
+                "text": access_card_text(
+                    request.app.state.settings.app_base_url, student["nick"], key
+                ),
+            })
+    finally:
+        conn.close()
+    all_text = "\n\n".join(card["text"] for card in cards)
+    response = render(
+        request,
+        "access_cards_bulk.html",
+        {
+            "title": "Карточки доступа", "cards": cards, "errors": errors,
+            "all_text": all_text, "back_href": "/admin/groups",
+            "back_label": "К группам",
+        },
+        actor=actor,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@router.post("/students/bulk/download")
+def admin_bulk_download(
+    request: Request,
+    content: str = Form(""),
+    csrf: str = Form(""),
+    actor: Actor = Depends(require_admin),
+):
+    check_csrf(request, csrf)
+    if not content.strip():
+        raise HTTPException(status_code=400)
+    return Response(
+        content,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="hwstud-access-cards.txt"',
+            "Cache-Control": "no-store",
+            "Referrer-Policy": "no-referrer",
+        },
+    )
+
+
 @router.post("/groups/{group_id}")
 def edit_group(
     request: Request,
     group_id: int,
     name: str = Form(""),
-    enroll_open: str = Form(""),
     csrf: str = Form(""),
     actor: Actor = Depends(require_admin),
 ):
@@ -170,8 +358,8 @@ def edit_group(
         conn = request.app.state.db_connect()
         try:
             conn.execute(
-                "UPDATE groups SET name = ?, enroll_open = ? WHERE id = ?",
-                (name.strip(), int(enroll_open == "1"), group_id),
+                "UPDATE groups SET name = ? WHERE id = ?",
+                (name.strip(), group_id),
             )
         finally:
             conn.close()

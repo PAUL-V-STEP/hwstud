@@ -15,6 +15,7 @@ from fastapi import HTTPException, Request
 from starlette import status
 
 from .db import transaction, utc_now_iso
+from .services.registration import group_registration_error
 
 NICK_RE = re.compile(r"^[A-Za-z0-9_-]{3,24}$")
 SCRYPT_N = 2**15
@@ -73,7 +74,7 @@ def validate_nick(nick: str) -> str | None:
 
 def find_student(conn: sqlite3.Connection, nick: str) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT s.*, g.name AS group_name, g.enroll_open "
+        "SELECT s.*, g.name AS group_name "
         "FROM students s JOIN groups g ON g.id = s.group_id "
         "WHERE s.nick_norm = ?",
         (normalize_nick(nick),),
@@ -81,7 +82,7 @@ def find_student(conn: sqlite3.Connection, nick: str) -> sqlite3.Row | None:
 
 
 def create_student(
-    conn: sqlite3.Connection, nick: str, group_id: int
+    conn: sqlite3.Connection, nick: str, group_id: int, *, require_window: bool = False
 ) -> tuple[sqlite3.Row | None, str | None]:
     nick = nick.strip()
     error = validate_nick(nick)
@@ -94,8 +95,10 @@ def create_student(
             ).fetchone()
             if not group:
                 return None, "Выберите группу."
-            if not group["enroll_open"]:
-                return None, "Набор в эту группу закрыт."
+            if require_window:
+                window_error = group_registration_error(group)
+                if window_error:
+                    return None, window_error
             count = conn.execute(
                 "SELECT COUNT(*) FROM students WHERE group_id = ?", (group_id,)
             ).fetchone()[0]
@@ -118,7 +121,7 @@ def create_student(
     except sqlite3.IntegrityError:
         return None, "Такой ник уже занят."
     row = conn.execute(
-        "SELECT s.*, g.name AS group_name, g.enroll_open "
+        "SELECT s.*, g.name AS group_name "
         "FROM students s JOIN groups g ON g.id = s.group_id WHERE s.id = ?",
         (student_id,),
     ).fetchone()

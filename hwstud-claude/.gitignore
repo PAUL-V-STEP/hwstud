@@ -3,7 +3,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-data/
+/data/
 *.db
 *.db-shm
 *.db-wal

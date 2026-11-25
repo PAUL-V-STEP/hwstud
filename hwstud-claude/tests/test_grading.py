@@ -294,6 +294,99 @@ def test_editable_global_instructions_are_used_in_next_grading_request(client, s
         conn.close()
 
 
+def test_removed_criteria_are_used_by_next_and_repeated_grading(client, settings):
+    submission_id = prepare_submission(settings, client)
+    conn = connect(settings)
+    try:
+        conn.execute(
+            "UPDATE assignments SET condition = ?, reference = ?, criteria = ?, "
+            "typical_errors = ? WHERE id = 1",
+            (
+                "Выполните задание", "Эталон",
+                "УДАЛЕННЫЙ_КРИТЕРИЙ_АБВ\nПроверь структуру\nКРИТЕРИЙ_ДЛЯ_ПОВТОРА",
+                "Типичные ошибки",
+            ),
+        )
+    finally:
+        conn.close()
+    login_admin(client)
+    response = client.get("/admin/assignments")
+    response = client.post(
+        "/admin/assignments/1",
+        data={
+            "csrf": csrf_from(response), "title": "Обновлённое задание",
+            "condition": "Новое условие", "reference": "Новый эталон",
+            "criteria": "Проверь структуру\nКРИТЕРИЙ_ДЛЯ_ПОВТОРА",
+            "typical_errors": "Новые ошибки", "threshold": "0.7", "due_at": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    proxy = FakeGradingClient()
+    worker = Worker(settings, proxy_client=proxy)
+    job = claim_next_job(settings)
+    asyncio.run(worker._run_job(dict(job)))
+    prompt = proxy.requests[0]["messages"][0]["content"]
+    assert "УДАЛЕННЫЙ_КРИТЕРИЙ_АБВ" not in prompt
+    assert "Проверь структуру" in prompt
+    assert "Новое условие" in prompt
+    assert "Новый эталон" in prompt
+
+    response = client.get("/admin/assignments")
+    response = client.post(
+        "/admin/assignments/1",
+        data={
+            "csrf": csrf_from(response), "title": "Обновлённое задание",
+            "condition": "Новое условие", "reference": "Новый эталон",
+            "criteria": "Проверь структуру", "typical_errors": "Новые ошибки",
+            "threshold": "0.7", "due_at": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    response = client.get(f"/admin/submissions/{submission_id}")
+    response = client.post(
+        f"/admin/submissions/{submission_id}/recheck",
+        data={"csrf": csrf_from(response)},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    job = claim_next_job(settings)
+    asyncio.run(worker._run_job(dict(job)))
+    repeated_prompt = proxy.requests[1]["messages"][0]["content"]
+    assert "КРИТЕРИЙ_ДЛЯ_ПОВТОРА" not in repeated_prompt
+    assert "УДАЛЕННЫЙ_КРИТЕРИЙ_АБВ" not in repeated_prompt
+    assert repeated_prompt.count("Проверь структуру") == 1
+    assert proxy.calls == 2
+
+
+def test_nonempty_criteria_exclude_requirements_from_other_fields(client, settings):
+    prepare_submission(settings, client)
+    conn = connect(settings)
+    try:
+        conn.execute(
+            "UPDATE assignments SET condition = ?, reference = ?, criteria = ? WHERE id = 1",
+            (
+                "КОНТЕКСТНОЕ_ТРЕБОВАНИЕ_НЕ_ОЦЕНИВАТЬ",
+                "ЭТАЛОННОЕ_ТРЕБОВАНИЕ_НЕ_ОЦЕНИВАТЬ",
+                "ЕДИНСТВЕННЫЙ_КРИТЕРИЙ_ДЛЯ_ОЦЕНКИ",
+            ),
+        )
+    finally:
+        conn.close()
+    proxy = FakeGradingClient()
+    worker = Worker(settings, proxy_client=proxy)
+    job = claim_next_job(settings)
+    asyncio.run(worker._run_job(dict(job)))
+    prompt = proxy.kwargs["messages"][0]["content"]
+    assert "КОНТЕКСТНОЕ_ТРЕБОВАНИЕ_НЕ_ОЦЕНИВАТЬ" in prompt
+    assert "ЕДИНСТВЕННЫЙ_КРИТЕРИЙ_ДЛЯ_ОЦЕНКИ" in prompt
+    assert "Поле «Критерии» — исчерпывающий список требований для оценки" in prompt
+    assert "не добавляй из них отдельные критерии" in prompt
+    assert "не включены в критерии" in prompt
+    assert "Не переноси критерии из ранее проверенных работ" in prompt
+
+
 def test_low_confidence_requires_manual_review(client, settings):
     submission_id = prepare_submission(settings, client)
     worker = Worker(settings, proxy_client=FakeGradingClient(confidence=0.2))

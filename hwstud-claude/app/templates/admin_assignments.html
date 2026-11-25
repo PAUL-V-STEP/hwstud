@@ -27,6 +27,7 @@
   <label>Условие<textarea name="condition" rows="4">{{ assignment.condition }}</textarea></label>
   <label>Эталонное решение<textarea name="reference" rows="4">{{ assignment.reference }}</textarea></label>
   <label>Критерии оценки<textarea name="criteria" rows="4">{{ assignment.criteria }}</textarea></label>
+  <p class="hint">Если список заполнен, ИИ оценивает только эти критерии. Условие и эталон служат контекстом и не добавляют отдельных требований. Чтобы требование влияло на оценку, включите его в этот список.</p>
   <label>Типичные ошибки<textarea name="typical_errors" rows="3">{{ assignment.typical_errors }}</textarea></label>
   <div class="form-columns"><label>Порог уверенности<input name="threshold" type="number" min="0" max="1" step="0.05" value="{{ assignment.threshold }}"></label><label>Срок по Москве<input name="due_at" type="datetime-local" value="{% if assignment.due_at %}{{ assignment.due_at|moscow_input }}{% endif %}"></label></div>
   <p class="hint">Секретные для студентов поля не показываются. Уже выставленные оценки не пересчитываются.</p>

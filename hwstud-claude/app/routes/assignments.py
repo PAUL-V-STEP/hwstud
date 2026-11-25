@@ -443,7 +443,9 @@ def admin_submissions(request: Request, actor: Actor = Depends(require_admin)):
     conn = request.app.state.db_connect()
     try:
         submissions = conn.execute(
-            "SELECT s.*, st.nick, g.name AS group_name, a.title FROM submissions s "
+            "SELECT s.*, st.nick, g.name AS group_name, a.title, "
+            "json_extract(s.similarity_json, '$.max_percent') AS similarity_percent "
+            "FROM submissions s "
             "JOIN students st ON st.id = s.student_id JOIN groups g ON g.id = st.group_id "
             "JOIN assignments a ON a.id = s.assignment_id "
             "ORDER BY CASE WHEN s.status = 'needs_review' THEN 0 "
@@ -477,11 +479,43 @@ def _admin_submission(conn, submission_id: int):
     ).fetchone()
 
 
+def _similarity_for_teacher(conn, submission) -> dict | None:
+    if not submission["similarity_json"]:
+        return None
+    similarity = json.loads(submission["similarity_json"])
+    matches = similarity.get("matches", [])
+    reference_ids = [int(match["reference_id"]) for match in matches]
+    details = {}
+    if reference_ids:
+        placeholders = ",".join("?" for _ in reference_ids)
+        rows = conn.execute(
+            "SELECT s.id, s.attempt, st.nick, g.name AS group_name FROM submissions s "
+            "JOIN students st ON st.id = s.student_id "
+            "JOIN groups g ON g.id = st.group_id "
+            f"WHERE s.id IN ({placeholders})",
+            reference_ids,
+        ).fetchall()
+        details = {row["id"]: row for row in rows}
+    enriched = []
+    for match in matches:
+        detail = details.get(int(match["reference_id"]))
+        enriched.append({
+            **match,
+            "nick": detail["nick"] if detail else "Работа удалена",
+            "group_name": detail["group_name"] if detail else "",
+            "attempt": detail["attempt"] if detail else None,
+            "exists": detail is not None,
+        })
+    similarity["matches"] = enriched
+    return similarity
+
+
 @router.get("/admin/submissions/{submission_id}")
 def admin_submission(request: Request, submission_id: int, actor: Actor = Depends(require_admin)):
     conn = request.app.state.db_connect()
     try:
         submission = _admin_submission(conn, submission_id)
+        similarity = _similarity_for_teacher(conn, submission) if submission else None
         job = conn.execute(
             "SELECT * FROM jobs WHERE kind = 'grading' "
             "AND json_extract(payload_json, '$.submission_id') = ? ORDER BY id DESC LIMIT 1",
@@ -494,7 +528,10 @@ def admin_submission(request: Request, submission_id: int, actor: Actor = Depend
     return render(
         request,
         "admin_submission.html",
-        {"title": f"Работа {submission_id}", "submission": submission, "job": job},
+        {
+            "title": f"Работа {submission_id}", "submission": submission,
+            "job": job, "similarity": similarity,
+        },
         actor=actor,
     )
 

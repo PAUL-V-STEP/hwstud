@@ -70,10 +70,22 @@ GRADING_RESPONSE = json_schema(
             "classification": {"type": "string"},
             "confidence": {"type": "number", "minimum": 0, "maximum": 1},
             "comment_for_student": {"type": "string"},
+            "similarity_matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "reference_id": {"type": "integer", "minimum": 1},
+                        "match_percent": {"type": "number", "minimum": 0, "maximum": 100},
+                    },
+                    "required": ["reference_id", "match_percent"],
+                    "additionalProperties": False,
+                },
+            },
         },
         "required": [
             "verdict", "score", "errors", "classification", "confidence",
-            "comment_for_student",
+            "comment_for_student", "similarity_matches",
         ],
         "additionalProperties": False,
     },

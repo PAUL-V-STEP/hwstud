@@ -50,6 +50,7 @@ def valid_content():
         "classification": "good",
         "confidence": 0.9,
         "comment_for_student": "Принято",
+        "similarity_matches": [],
     }
 
 
@@ -144,3 +145,22 @@ def test_grading_schema_validation():
         content = valid_content()
         content["score"] = score
         assert validate_grading_content(content)
+
+
+def test_similarity_validation_checks_percent_and_exact_reference_set():
+    content = valid_content()
+    content["similarity_matches"] = [{"reference_id": 7, "match_percent": 82.5}]
+    assert validate_grading_content(content, {7}) is None
+    assert validate_grading_content(content, {8})
+    for reference_id, percent in ((True, 10), (7, -1), (7, 101), (7, True)):
+        content = valid_content()
+        content["similarity_matches"] = [
+            {"reference_id": reference_id, "match_percent": percent}
+        ]
+        assert validate_grading_content(content)
+    content = valid_content()
+    content["similarity_matches"] = [
+        {"reference_id": 7, "match_percent": 10},
+        {"reference_id": 7, "match_percent": 20},
+    ]
+    assert validate_grading_content(content, {7})

@@ -184,7 +184,9 @@ def _decode_json_content(value: Any) -> dict[str, Any]:
     return content
 
 
-def validate_grading_content(content: dict[str, Any]) -> str | None:
+def validate_grading_content(
+    content: dict[str, Any], expected_reference_ids: set[int] | None = None
+) -> str | None:
     if content.get("verdict") not in {"accept", "revise"}:
         return "verdict должен быть accept или revise"
     score = content.get("score")
@@ -199,6 +201,26 @@ def validate_grading_content(content: dict[str, Any]) -> str | None:
         return "errors должен быть списком"
     if not isinstance(content.get("comment_for_student"), str):
         return "comment_for_student должен быть строкой"
+    matches = content.get("similarity_matches")
+    if not isinstance(matches, list):
+        return "similarity_matches должен быть списком"
+    actual_reference_ids: set[int] = set()
+    for match in matches:
+        if not isinstance(match, dict):
+            return "Каждое совпадение должно быть объектом"
+        reference_id = match.get("reference_id")
+        percent = match.get("match_percent")
+        if isinstance(reference_id, bool) or not isinstance(reference_id, int) or reference_id < 1:
+            return "reference_id должен быть положительным целым числом"
+        if isinstance(percent, bool) or not isinstance(percent, (int, float)):
+            return "match_percent должен быть числом"
+        if not 0 <= percent <= 100:
+            return "match_percent должен быть от 0 до 100"
+        if reference_id in actual_reference_ids:
+            return "similarity_matches содержит повторный reference_id"
+        actual_reference_ids.add(reference_id)
+    if expected_reference_ids is not None and actual_reference_ids != expected_reference_ids:
+        return "Модель должна вернуть ровно один процент для каждой работы сравнения"
     return None
 
 

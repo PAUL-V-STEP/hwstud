@@ -91,7 +91,7 @@ hwstud/
 | `sources` | id, author, title, url, type, annotation, priority (main/extra) |
 | `source_refs` | source_id, lecture_id, slide_n, local_number |
 | `assignments` | стабильный id (1–10), position (текущий номер и порядок), title, condition, reference, criteria, typical_errors, threshold (0,7), due_at, max_attempts (4) |
-| `submissions` | id, student_id, assignment_id, attempt, file, mime, size, pages, chars, created_at, late, status, verdict, score (0–10), comment, errors_json, classification, confidence, decided_at |
+| `submissions` | id, student_id, assignment_id, attempt, file, mime, size, pages, chars, created_at, late, status, verdict, score (0–10), comment, errors_json, classification, confidence, similarity_json, decided_at |
 | `review_requests` | id, submission_id, created_at, status, answer |
 | `jobs` | id, kind, priority, payload_json, status, tries, run_after, started_at, request_sent_at, error, model, tokens_in, tokens_out, cost_est |
 | `announcements` | id, title, body, link, kind (normal/important/deadline), pinned, publish_at, unpublish_at |
@@ -257,7 +257,7 @@ lecture_visible(student, lecture, now) =
 
 ### 8.3. Запрос и ответ
 
-Запрос: `POST {PROXYAPI_BASE_URL}/chat/completions`, заголовок `Authorization: Bearer {PROXYAPI_KEY}`, `model = MODEL_GRADING`, `temperature 0.2`, `max_completion_tokens 1500`, `reasoning_effort = low`. Служебные задачи используют тот же `reasoning_effort` и `max_completion_tokens 2000`: фактическая проверка 23.11.2026 показала, что при 800 токенах модель могла израсходовать весь лимит на рассуждения и вернуть пустой `content` с `finish_reason=length`. В системном сообщении — роль проверяющего, условие, эталон, критерии, типичные ошибки и шкала 0–10. В пользовательском — работа.
+Запрос: `POST {PROXYAPI_BASE_URL}/chat/completions`, заголовок `Authorization: Bearer {PROXYAPI_KEY}`, `model = MODEL_GRADING`, `temperature 0.2`, `max_completion_tokens 1500`, `reasoning_effort = low`. Служебные задачи используют тот же `reasoning_effort` и `max_completion_tokens 2000`: фактическая проверка 23.11.2026 показала, что при 800 токенах модель могла израсходовать весь лимит на рассуждения и вернуть пустой `content` с `finish_reason=length`. В системном сообщении — роль проверяющего, условие, эталон, критерии, типичные ошибки, шкала 0–10 и правила сравнения. В пользовательском — текущая работа и, при наличии, пакет ранее проверенных работ для сравнения.
 
 Ответ — строго JSON:
 
@@ -268,10 +268,12 @@ lecture_visible(student, lecture, now) =
   "errors": [{"criterion": "", "description": "", "severity": "low | medium | high"}],
   "classification": "",
   "confidence": 0.0,
-  "comment_for_student": ""
+  "comment_for_student": "",
+  "similarity_matches": [{"reference_id": 12, "match_percent": 0.0}]
 }
 ```
 
+- `similarity_matches` содержит ровно один результат для каждой работы сравнения в текущем пакете: `reference_id` — ID работы, `match_percent` — число от 0 до 100. Для сравнения выбираются последние проверенные преподавателем попытки других студентов по тому же заданию. В модель передаются только ID и подготовленное содержимое, без ников. Все подходящие работы разбиваются на пакеты до четырёх; текущая работа передаётся в каждом пакете. После каждого ответа сохраняются прогресс и суммарные `tokens_in`/`tokens_out`. При паузе по балансу завершённые пакеты не повторяются. Итоговый список, максимум, число сравнений и число недоступных файлов сохраняются в `submissions.similarity_json`; ники подставляются только при показе преподавателю. Процент не меняет автоматически вердикт или баллы.
 - `score` — целое число от 0 до 10, иначе ответ считается невалидным.
 - Невалидный JSON → одна повторная попытка, потом `needs_review`.
 - `confidence < threshold` → `needs_review`, иначе `awaiting_approval`.

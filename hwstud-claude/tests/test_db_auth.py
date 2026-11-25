@@ -5,7 +5,7 @@ from app.db import connect, migrate, utc_now_iso
 
 
 def test_migration_creates_required_seed_and_pragmas(settings):
-    assert migrate(settings) == [1, 2, 3, 4, 5, 6]
+    assert migrate(settings) == [1, 2, 3, 4, 5, 6, 7]
     assert migrate(settings) == []
     conn = connect(settings)
     try:
@@ -23,6 +23,9 @@ def test_migration_creates_required_seed_and_pragmas(settings):
         ).fetchone()[0]
         assert "преподаватель университета" in instructions
         assert "первого курса магистратуры" in instructions
+        assert "similarity_json" in {
+            row[1] for row in conn.execute("PRAGMA table_info(submissions)")
+        }
         assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         assert conn.execute("PRAGMA secure_delete").fetchone()[0] == 1
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
@@ -57,7 +60,7 @@ def test_fifth_assignment_migration_preserves_existing_submission(settings):
         )
     finally:
         conn.close()
-    assert migrate(settings) == [4, 5, 6]
+    assert migrate(settings) == [4, 5, 6, 7]
     conn = connect(settings)
     try:
         assert conn.execute("SELECT COUNT(*) FROM assignments").fetchone()[0] == 5

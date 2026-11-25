@@ -12,7 +12,12 @@
       {% if show_key %}
       <p class="new-nick">Ник <strong>{{ nick }}</strong></p>
       <label for="personal-key">Личный ключ</label>
-      <input id="personal-key" name="personal_key" type="password" required autocomplete="current-password" autofocus>
+      <div class="password-field">
+        <input id="personal-key" name="personal_key" type="password" required autocomplete="current-password" autofocus>
+        <button class="password-toggle" type="button" data-password-toggle="personal-key" aria-controls="personal-key" aria-label="Показать личный ключ" aria-pressed="false" title="Показать личный ключ" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
       {% elif not show_groups %}
       <label for="nick">Ник</label>
       <input id="nick" name="nick" value="{{ nick }}" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]+" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" autofocus>

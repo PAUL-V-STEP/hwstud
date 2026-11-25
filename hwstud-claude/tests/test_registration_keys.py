@@ -370,6 +370,10 @@ def test_existing_student_uses_key_and_empty_first_step_is_not_an_error(client):
     assert response.status_code == 200
     assert 'name="personal_key"' in response.text
     assert 'autocomplete="current-password"' in response.text
+    assert 'data-password-toggle="personal-key"' in response.text
+    assert 'aria-controls="personal-key"' in response.text
+    assert 'aria-label="Показать личный ключ"' in response.text
+    assert 'id="personal-key" name="personal_key" type="password"' in response.text
     conn = client.app.state.db_connect()
     try:
         student = conn.execute(

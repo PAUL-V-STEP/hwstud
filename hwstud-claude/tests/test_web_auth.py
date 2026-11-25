@@ -204,7 +204,7 @@ def test_student_navigation_has_responsive_menu(client):
 
 def test_form_scroll_preservation_script_is_versioned_and_scoped(client):
     page = client.get("/about")
-    assert 'src="/static/js/app.js?v=20261125-2"' in page.text
+    assert 'src="/static/js/app.js?v=20261125-3"' in page.text
     assert 'src="/static/js/registration.js?v=20261125-1"' in page.text
     script = client.get("/static/js/app.js").text
     assert "sessionStorage.setItem(formScrollKey" in script
@@ -212,6 +212,10 @@ def test_form_scroll_preservation_script_is_versioned_and_scoped(client):
     assert "window.scrollTo(0, savedFormScroll)" in script
     assert "root.style.scrollBehavior = 'auto'" in script
     assert "form.matches('[data-upload-form]')" in script
+    assert "document.querySelectorAll('[data-password-toggle]')" in script
+    assert "input.type = visible ? 'text' : 'password'" in script
+    assert "button.hidden = false" in script
+    assert "Скрыть личный ключ" in script
 
 
 def test_static_theme_and_public_about(client):
@@ -222,9 +226,12 @@ def test_static_theme_and_public_about(client):
     assert response.text.count('class="about-author-logo logo-light"') == 1
     assert response.text.count('class="about-author-logo logo-dark"') == 1
     assert 'class="author-brand"' not in response.text
-    assert 'app.css?v=20261125-1' in response.text
+    assert 'app.css?v=20261125-2' in response.text
     css_response = client.get("/static/css/app.css")
     assert css_response.status_code == 200
+    assert ".password-field{position:relative}" in css_response.text
+    assert ".password-toggle{position:absolute" in css_response.text
+    assert "width:44px;height:44px" in css_response.text
     assert ".author-brand img{display:block;width:192px;height:64px" in css_response.text
     assert ".about-author-logo{display:block;width:240px;height:80px" in css_response.text
     assert "@media(min-width:768px){.author-brand img{width:144px;height:48px}.about-author-logo{width:180px;height:60px}}" in css_response.text

@@ -29,6 +29,15 @@ cd hwstud-claude
 
 Тесты используют заглушки ProxyAPI и SMTP и не выполняют внешние сетевые запросы.
 
+## Claude Code
+
+Проектный skill помогает разбираться в структуре, запускать сервис, изменять код, обновлять документацию, диагностировать ошибки и готовить выпуск:
+
+- [SKILL.md](.claude/skills/hwstud/SKILL.md) — основная версия для Claude Code;
+- [hwstud-skill.docx](.claude/skills/hwstud/hwstud-skill.docx) — версия для чтения и печати.
+
+В новой сессии Claude Code можно вызвать skill командой `/hwstud` либо попросить выполнить задачу с использованием проектного skill hwstud.
+
 ## Документация
 
 - [README проекта](hwstud-claude/README.md)

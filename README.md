@@ -37,3 +37,11 @@ cd hwstud-claude
 - [Установка на REG.RU](hwstud-claude/DEPLOY.md)
 - [Инструкция REG.RU в DOCX](hwstud-claude/REG-RU-INSTALL.docx)
 - [Результаты проверок](hwstud-claude/TESTING.md)
+
+## Рекламные материалы
+
+Буклеты «ИИ Методист» лежат в каталоге [`marketing/`](marketing/):
+
+- [Буклет на 1 страницу, крупный шрифт](marketing/hwstud-buklet-na-1-stranitsu-krupnyi.pdf)
+- [Рекламный буклет на 1 странице](marketing/hwstud-reklamnyi-buklet-1-str.pdf)
+- [Рекламный буклет на 2 страницах](marketing/hwstud-reklamnyi-buklet-2-str.pdf)

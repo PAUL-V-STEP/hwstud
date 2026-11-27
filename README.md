@@ -114,6 +114,7 @@ py -3.12 -m venv .venv
 hwstud/
 ├── .claude/skills/hwstud/       # Skill Claude Code и его DOCX-версия
 ├── docs/images/                 # Скриншоты для этого README
+├── marketing/                   # Рекламные буклеты «ИИ Методист» в PDF
 ├── hwstud-claude/
 │   ├── app/
 │   │   ├── routes/              # HTTP-маршруты по предметным областям
@@ -143,7 +144,20 @@ hwstud/
 - [вход и регистрация](hwstud-claude/docs/07-AUTH-CLASS-CODE-KEYS.md);
 - [установка на REG.RU](hwstud-claude/DEPLOY.md);
 - [результаты проверок](hwstud-claude/TESTING.md);
-- [анализ и дорожная карта развития](hwstud_analysis_and_development.docx).
+- [анализ и дорожная карта развития](hwstud_analysis_and_development.docx);
+- [рекламные буклеты](#рекламные-материалы).
+
+## Рекламные материалы
+
+Буклеты «ИИ Методист» для преподавателей и учебных заведений лежат в каталоге [`marketing/`](marketing/):
+
+| Файл | Формат | Назначение |
+|---|---|---|
+| [hwstud-buklet-na-1-stranitsu-krupnyi.pdf](marketing/hwstud-buklet-na-1-stranitsu-krupnyi.pdf) | A4, 1 страница, основной текст от 12 pt | Печать и раздача: ключевые цифры, шаги ИИ-проверки, 6 главных возможностей, групповое и личное общение |
+| [hwstud-reklamnyi-buklet-1-str.pdf](marketing/hwstud-reklamnyi-buklet-1-str.pdf) | A4, 1 страница со скриншотами | Краткая презентация продукта со снимками экранов |
+| [hwstud-reklamnyi-buklet-2-str.pdf](marketing/hwstud-reklamnyi-buklet-2-str.pdf) | A4, 2 страницы, крупный текст | Подробное описание: лекции, глоссарий, ИИ-агент и ИИ-вердикт, результаты, экзамен |
+
+Скриншоты в буклетах сделаны на демонстрационных данных. QR-коды ведут на [hwstud.ru](https://www.hwstud.ru) и сайт студии AI&HI.
 
 ## Claude Code
 
